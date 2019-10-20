@@ -52,6 +52,17 @@ def q_put():
     print("Added url " + url + " to the download queue")
     return {"success": True, "url": url, "options": options}
 
+@app.route("/update", method="GET")
+def update():
+    command = ["pip", "install", "--upgrade", "youtube-dl"]
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    output, error = proc.communicate()
+    return {
+        "output": output.decode('ascii'),
+        "error":  error.decode('ascii')
+    }
+
 def download_worker():
     while not done:
         url, options = download_queue.get()
