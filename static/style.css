@@ -13,12 +13,11 @@ footer {
 }
 
 a {
-  color: inherit;
+  color: #ffab00;
   text-decoration: none;
-  font-weight: 600;
 }
 
-.input {
+.input, .columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
   column-gap: 8px;
@@ -31,4 +30,8 @@ a {
 
 h1, footer {
   text-align: center;
+}
+
+footer a {
+  color: darkgray
 }
