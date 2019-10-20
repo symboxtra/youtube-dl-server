@@ -2,8 +2,7 @@ from __future__ import unicode_literals
 import json
 import os
 import subprocess
-from queue import Queue
-from bottle import route, run, Bottle, request, static_file
+from bottle import route, run, Bottle, request, static_file, view, redirect
 from threading import Thread
 import youtube_dl
 from pathlib import Path
@@ -24,21 +23,19 @@ app_defaults = {
 
 
 @app.route('/')
+@view('index')
 def dl_queue_list():
-    return static_file('index.html', root='./')
-
+    return {
+        "history": download_history,
+        "queue": map(lambda x: x[0], download_queue)
+    }
 
 @app.route('/static/:filename#.*#')
 def server_static(filename):
     return static_file(filename, root='./static')
 
 
-@app.route('/q', method='GET')
-def q_size():
-    return {"success": True, "size": json.dumps(list(download_queue.queue))}
-
-
-@app.route('/q', method='POST')
+@app.route('/', method='POST')
 def q_put():
     url = request.forms.get("url")
     options = {
@@ -48,14 +45,15 @@ def q_put():
     if not url:
         return {"success": False, "error": "/q called without a 'url' query param"}
 
-    download_queue.put((url, options))
-    print("Added url " + url + " to the download queue")
-    return {"success": True, "url": url, "options": options}
+    download_queue.append((url, options))
+    return redirect("/")
+
 
 @app.route("/update", method="GET")
 def update():
     command = ["pip", "install", "--upgrade", "youtube-dl"]
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     output, error = proc.communicate()
     return {
@@ -63,11 +61,14 @@ def update():
         "error":  error.decode('ascii')
     }
 
+
 def download_worker():
     while not done:
-        url, options = download_queue.get()
+        if (len(download_queue) == 0):
+            continue
+
+        url, options = download_queue.pop()
         download(url, options)
-        download_queue.task_done()
 
 
 def get_ydl_options(request_options):
@@ -112,10 +113,16 @@ def get_ydl_options(request_options):
 
 def download(url, request_options):
     with youtube_dl.YoutubeDL(get_ydl_options(request_options)) as ydl:
+        data = ydl.extract_info(url, download=False)
+        download_history.append({
+            "url": url,
+            "title": data["title"]
+        })
         ydl.download([url])
 
 
-download_queue = Queue()
+download_queue = []
+download_history = []
 done = False
 download_thread = Thread(target=download_worker)
 download_thread.start()
