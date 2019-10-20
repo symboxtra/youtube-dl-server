@@ -11,7 +11,6 @@ from collections import ChainMap
 
 app = Bottle()
 
-
 app_defaults = {
     'YDL_FORMAT': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
     'YDL_EXTRACT_AUDIO_FORMAT': None,
@@ -24,22 +23,22 @@ app_defaults = {
 }
 
 
-@app.route('/youtube-dl')
+@app.route('/')
 def dl_queue_list():
     return static_file('index.html', root='./')
 
 
-@app.route('/youtube-dl/static/:filename#.*#')
+@app.route('/static/:filename#.*#')
 def server_static(filename):
     return static_file(filename, root='./static')
 
 
-@app.route('/youtube-dl/q', method='GET')
+@app.route('/q', method='GET')
 def q_size():
-    return {"success": True, "size": json.dumps(list(dl_q.queue))}
+    return {"success": True, "size": json.dumps(list(download_queue.queue))}
 
 
-@app.route('/youtube-dl/q', method='POST')
+@app.route('/q', method='POST')
 def q_put():
     url = request.forms.get("url")
     options = {
@@ -49,16 +48,15 @@ def q_put():
     if not url:
         return {"success": False, "error": "/q called without a 'url' query param"}
 
-    dl_q.put((url, options))
+    download_queue.put((url, options))
     print("Added url " + url + " to the download queue")
     return {"success": True, "url": url, "options": options}
 
-
-def dl_worker():
+def download_worker():
     while not done:
-        url, options = dl_q.get()
+        url, options = download_queue.get()
         download(url, options)
-        dl_q.task_done()
+        download_queue.task_done()
 
 
 def get_ydl_options(request_options):
@@ -106,15 +104,16 @@ def download(url, request_options):
         ydl.download([url])
 
 
-dl_q = Queue()
+download_queue = Queue()
 done = False
-dl_thread = Thread(target=dl_worker)
-dl_thread.start()
+download_thread = Thread(target=download_worker)
+download_thread.start()
 
 print("Started download thread")
 
 app_vars = ChainMap(os.environ, app_defaults)
 
-app.run(host=app_vars['YDL_SERVER_HOST'], port=app_vars['YDL_SERVER_PORT'], debug=True)
+app.run(host=app_vars['YDL_SERVER_HOST'],
+        port=app_vars['YDL_SERVER_PORT'], debug=True)
 done = True
-dl_thread.join()
+download_thread.join()
