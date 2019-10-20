@@ -120,6 +120,11 @@ done = False
 download_thread = Thread(target=download_worker)
 download_thread.start()
 
+print("Updating youtube-dl to the newest version")
+updateResult = update()
+print(updateResult["output"])
+print(updateResult["error"])
+
 print("Started download thread")
 
 app_vars = ChainMap(os.environ, app_defaults)
