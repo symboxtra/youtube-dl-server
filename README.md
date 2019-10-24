@@ -1,3 +1,5 @@
+[![Build Status](https://dev.azure.com/jlnostr/youtube-dl-server/_apis/build/status/jlnostr.youtube-dl-server?branchName=master)](https://dev.azure.com/jlnostr/youtube-dl-server/_build/latest?definitionId=9&branchName=master)
+
 # youtube-dl-server
 This fork of `youtube-dl-server` has some changes made to the original.
 
