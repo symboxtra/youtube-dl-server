@@ -34,15 +34,9 @@ def dl_queue_list():
 def server_static(filename):
     return static_file(filename, root='./static')
 
-# Get method for Apple Shortcuts
-@app.route('/sc', method="GET")
 @app.route('/', method='POST')
-def q_put():
-    url = ""
-    if len(request.query) == 1:
-        url = request.query.get("url")
-    else:
-        url = request.forms.get("url")
+def addToQueue():
+    url = request.forms.get("url")
     options = {
         'format': request.forms.get("format")
     }
