@@ -7,6 +7,7 @@ from threading import Thread
 import youtube_dl
 from pathlib import Path
 from collections import ChainMap
+from concurrent.futures import ThreadPoolExecutor
 
 app = Bottle()
 
@@ -18,7 +19,7 @@ app_defaults = {
     'YDL_OUTPUT_TEMPLATE': '/youtube-dl/%(title)s [%(id)s].%(ext)s',
     'YDL_ARCHIVE_FILE': None,
     'YDL_SERVER_HOST': '0.0.0.0',
-    'YDL_SERVER_PORT': 8080,
+    'YDL_SERVER_PORT': 8080
 }
 
 
@@ -27,12 +28,13 @@ app_defaults = {
 def dl_queue_list():
     return {
         "history": download_history,
-        "queue": map(lambda x: x[0], download_queue)
     }
+
 
 @app.route('/static/:filename#.*#')
 def server_static(filename):
     return static_file(filename, root='./static')
+
 
 @app.route('/', method='POST')
 def addToQueue():
@@ -44,7 +46,7 @@ def addToQueue():
     if not url:
         return {"success": False, "error": "/q called without a 'url' query param"}
 
-    download_queue.append((url, options))
+    download_executor.submit(download, url, options)
     return redirect("/")
 
 
@@ -59,15 +61,6 @@ def update():
         "output": output.decode('ascii'),
         "error":  error.decode('ascii')
     }
-
-
-def download_worker():
-    while not done:
-        if (len(download_queue) == 0):
-            continue
-
-        url, options = download_queue.pop()
-        download(url, options)
 
 
 def get_ydl_options(request_options):
@@ -120,11 +113,8 @@ def download(url, request_options):
         ydl.download([url])
 
 
-download_queue = []
+download_executor = ThreadPoolExecutor(max_workers=4)
 download_history = []
-done = False
-download_thread = Thread(target=download_worker)
-download_thread.start()
 
 print("Updating youtube-dl to the newest version")
 updateResult = update()
@@ -137,5 +127,3 @@ app_vars = ChainMap(os.environ, app_defaults)
 
 app.run(host=app_vars['YDL_SERVER_HOST'],
         port=app_vars['YDL_SERVER_PORT'], debug=True)
-done = True
-download_thread.join()

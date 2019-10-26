@@ -51,23 +51,13 @@
 			</div>
 		</form>
 
-		<div class="columns">
-			<div>
-				<h2>Queue</h2>
-				<ul class="queue">
-					%for item in queue:
-					<li><a href="{{item}}" target="blank">{{item}}</a></li>
-					%end
-				</ul>
-			</div>
-			<div>
-				<h2>History</h2>
-				<ul class="queue">
-					%for item in history:
-					<li><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></li>
-					%end
-				</ul>
-			</div>
+		<div>
+			<h2>History</h2>
+			<ul class="queue">
+				%for item in history:
+				<li><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></li>
+				%end
+			</ul>
 		</div>
 	</main>
 
