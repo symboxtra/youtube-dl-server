@@ -80,7 +80,9 @@ def get_ydl_options(request_options):
 
     ydl_vars = ChainMap(request_vars, os.environ, app_defaults)
 
-    postprocessors = []
+    postprocessors = [{
+        'key': 'FFmpegEmbedSubtitle'
+    }]
 
     if(ydl_vars['YDL_EXTRACT_AUDIO_FORMAT']):
         postprocessors.append({
@@ -99,7 +101,10 @@ def get_ydl_options(request_options):
         'format': ydl_vars['YDL_FORMAT'],
         'postprocessors': postprocessors,
         'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
-        'download_archive': ydl_vars['YDL_ARCHIVE_FILE']
+        'download_archive': ydl_vars['YDL_ARCHIVE_FILE'],
+        'noplaylist': True,
+        'writesubtitles': True,
+        'allsubtitles': True
     }
 
 
