@@ -20,6 +20,26 @@ docker run -d --net="host" --name youtube-dl -v /home/core/youtube-dl:/youtube-d
 ```
 
 
+### Without docker
+You need to have Python 3 and pip (the package manager of python) installed. If that's the case, you can download a copy of this code and execute it locally.
+
+```shell
+wget https://github.com/jlnostr/youtube-dl-server/archive/master.zip
+unzip master.zip
+mv youtube-dl-server-master youtube-dl
+cd youtube-dl
+```
+
+There are two ways of editing the config. First, by setting the environment variables that are defined in `youtube-dl-server.py`, for example:
+
+
+```shell
+# This would save the files in a 'data' subdirectory
+export YDL_OUTPUT_TEMPLATE="./data/%(title)s [%(id)s].%(ext)s"
+```
+
+or by editing the `app_defaults` property of `youtube-dl-server.py` directly as a permanent solution.
+
 
 ## Usage
 
