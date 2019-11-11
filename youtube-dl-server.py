@@ -102,7 +102,6 @@ def get_ydl_options(request_options):
         'postprocessors': postprocessors,
         'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
         'download_archive': ydl_vars['YDL_ARCHIVE_FILE'],
-        'noplaylist': True,
         'writesubtitles': True,
         'allsubtitles': True
     }
