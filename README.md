@@ -28,6 +28,7 @@ wget https://github.com/jlnostr/youtube-dl-server/archive/master.zip
 unzip master.zip
 mv youtube-dl-server-master youtube-dl
 cd youtube-dl
+pip install -r requirements.txt
 ```
 
 There are two ways of editing the config. First, by setting the environment variables that are defined in `youtube-dl-server.py`, for example:
