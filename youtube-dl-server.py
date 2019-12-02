@@ -12,12 +12,9 @@ from concurrent.futures import ThreadPoolExecutor
 app = Bottle()
 
 app_defaults = {
-    'YDL_FORMAT': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
-    'YDL_EXTRACT_AUDIO_FORMAT': None,
-    'YDL_EXTRACT_AUDIO_QUALITY': '192',
-    'YDL_RECODE_VIDEO_FORMAT': None,
-    'YDL_OUTPUT_TEMPLATE': '/youtube-dl/%(title)s [%(id)s].%(ext)s',
-    'YDL_ARCHIVE_FILE': None,
+    'YDL_FORMAT': '(bestvideo[vcodec^=av01][height>=1080][fps>30]/bestvideo[vcodec=vp9.2][height>=1080][fps>30]/bestvideo[vcodec=vp9][height>=1080][fps>30]/bestvideo[vcodec^=av01][height>=1080]/bestvideo[vcodec=vp9.2][height>=1080]/bestvideo[vcodec=vp9][height>=1080]/bestvideo[height>=1080]/bestvideo[vcodec^=av01][height>=720][fps>30]/bestvideo[vcodec=vp9.2][height>=720][fps>30]/bestvideo[vcodec=vp9][height>=720][fps>30]/bestvideo[vcodec^=av01][height>=720]/bestvideo[vcodec=vp9.2][height>=720]/bestvideo[vcodec=vp9][height>=720]/bestvideo[height>=720]/bestvideo)+(bestaudio[acodec=opus]/bestaudio)/best',
+    'YDL_OUTPUT_TEMPLATE': '/youtube-dl/%(extractor_key)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
+    'YDL_ARCHIVE_FILE': "/youtube-dl/archive.log",
     'YDL_SERVER_HOST': '0.0.0.0',
     'YDL_SERVER_PORT': 8080
 }
@@ -64,46 +61,27 @@ def update():
 
 
 def get_ydl_options(request_options):
-    request_vars = {
-        'YDL_EXTRACT_AUDIO_FORMAT': None,
-        'YDL_RECODE_VIDEO_FORMAT': None,
-    }
+    ydl_vars = ChainMap(os.environ, app_defaults)
 
-    requested_format = request_options.get('format', 'bestvideo')
-
-    if requested_format in ['aac', 'flac', 'mp3', 'm4a', 'opus', 'vorbis', 'wav']:
-        request_vars['YDL_EXTRACT_AUDIO_FORMAT'] = requested_format
-    elif requested_format == 'bestaudio':
-        request_vars['YDL_EXTRACT_AUDIO_FORMAT'] = 'best'
-    elif requested_format in ['mp4', 'flv', 'webm', 'ogg', 'mkv', 'avi']:
-        request_vars['YDL_RECODE_VIDEO_FORMAT'] = requested_format
-
-    ydl_vars = ChainMap(request_vars, os.environ, app_defaults)
-
-    postprocessors = [{
-        'key': 'FFmpegEmbedSubtitle'
-    }]
-
-    if(ydl_vars['YDL_EXTRACT_AUDIO_FORMAT']):
-        postprocessors.append({
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': ydl_vars['YDL_EXTRACT_AUDIO_FORMAT'],
-            'preferredquality': ydl_vars['YDL_EXTRACT_AUDIO_QUALITY'],
-        })
-
-    if(ydl_vars['YDL_RECODE_VIDEO_FORMAT']):
-        postprocessors.append({
-            'key': 'FFmpegVideoConvertor',
-            'preferedformat': ydl_vars['YDL_RECODE_VIDEO_FORMAT'],
-        })
-
+    # List of all options can be found here:
+    # https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/options.py
     return {
         'format': ydl_vars['YDL_FORMAT'],
-        'postprocessors': postprocessors,
         'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
         'download_archive': ydl_vars['YDL_ARCHIVE_FILE'],
-        'writesubtitles': True,
-        'allsubtitles': True
+        'writesubtitles': True,  # --write-sub
+        'allsubtitles': True,  # --all-subs
+        'ignoreerrors': True,  # --ignore-errors
+        'continue_dl': False,  # --no-continue
+        'nooverwrites': True,  # --no-overwrites
+        'addmetadata': True,  # --add-metadata
+        'writedescription': True,  # --write-description
+        'writeinfojson': True,  # --write-info-json
+        'writeannotations': True,  # --write-annotations
+        'writethumbnail': True,  # --write-thumbnail
+        'embedthumbnail': True,  # --embed-thumbnail
+        'subtitlesformat': "srt",  # --sub-format "srt"
+        'embedsubtitles': True  # --embed-subs
     }
 
 
