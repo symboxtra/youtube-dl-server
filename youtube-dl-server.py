@@ -82,7 +82,9 @@ def get_ydl_options(request_options):
         'embedthumbnail': True,  # --embed-thumbnail
         'subtitlesformat': "srt",  # --sub-format "srt"
         'embedsubtitles': True,  # --embed-subs
-        'merge_output_format': "mkv" # --merge-output-format "mkv"
+        'merge_output_format': "mkv",  # --merge-output-format "mkv"
+        'recodevideo': "mkv",  # --recode-video "mkv"
+        'embedsubtitles': True  # --embed-subs
     }
 
 
