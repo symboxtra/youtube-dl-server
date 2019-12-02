@@ -14,7 +14,7 @@
 
 <body>
 	<header>
-		<h1>youtube-dl</h1>
+		<h1>Multimedia content archival</h1>
 		<p class="lead">
 			Provide a <a href="https://rg3.github.io/youtube-dl/supportedsites.html">youtube-dl supported</a> video URL
 			to download the video to the server.
@@ -26,27 +26,6 @@
 			<div class="input">
 				<input class="input__url" name="url" type="url" placeholder="URL" aria-label="URL"
 					aria-describedby="button-submit">
-				<select name="format" class="input__options">
-					<optgroup label="Video">
-						<option value="bestvideo">Best Video</option>
-						<option value="mp4">MP4</option>
-						<option value="flv">Flash Video (FLV)</option>
-						<option value="webm">WebM</option>
-						<option value="ogg">Ogg</option>
-						<option value="mkv">Matroska (MKV)</option>
-						<option value="avi">AVI</option>
-					</optgroup>
-					<optgroup label="Audio">
-						<option value="bestaudio">Best Audio</option>
-						<option value="aac">AAC</option>
-						<option value="flac">FLAC</option>
-						<option value="mp3">MP3</option>
-						<option value="m4a">M4A</option>
-						<option value="opus">Opus</option>
-						<option value="vorbis">Vorbis</option>
-						<option value="wav">WAV</option>
-					</optgroup>
-				</select>
 				<button class="input__btn" type="submit" id="button-submit">Submit</button>
 			</div>
 		</form>
