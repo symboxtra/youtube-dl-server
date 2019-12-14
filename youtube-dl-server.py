@@ -9,6 +9,20 @@ from pathlib import Path
 from collections import ChainMap
 from concurrent.futures import ThreadPoolExecutor
 
+import sqlite3 as sqlite
+
+is_new_db = not os.path.exists('db/youtube-dl.db')
+db = sqlite.connect('db/youtube-dl.db')
+
+if (is_new_db):
+    with open('db/init.sql', mode='r') as f:
+        qstring = f.read()
+
+    print(qstring)
+
+    db.executescript(qstring)
+    db.commit()
+
 app = Bottle()
 
 app_defaults = {
