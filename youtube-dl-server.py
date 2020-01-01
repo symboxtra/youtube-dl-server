@@ -1,27 +1,33 @@
 from __future__ import unicode_literals
+
 import json
+import logging
 import os
 import subprocess
-from bottle import route, run, Bottle, request, static_file, view, redirect
-from threading import Thread
-import youtube_dl
-from pathlib import Path
+import sys
 from collections import ChainMap
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from threading import Thread
 
-import sqlite3 as sqlite
+import youtube_dl
+from bottle import Bottle, redirect, request, route, run, static_file, view
+from database import YtdlSqliteDatabase
 
-is_new_db = not os.path.exists('db/youtube-dl.db')
-db = sqlite.connect('db/youtube-dl.db')
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 
-if (is_new_db):
-    with open('db/init.sql', mode='r') as f:
-        qstring = f.read()
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(levelname)s: %(message)s')
+handler.setFormatter(formatter)
 
-    print(qstring)
+log.addHandler(handler)
 
-    db.executescript(qstring)
-    db.commit()
+db = YtdlSqliteDatabase()
+
+# Fill global information
+format_options = db.get_format_options()
 
 app = Bottle()
 
@@ -38,6 +44,7 @@ app_defaults = {
 @view('index')
 def dl_queue_list():
     return {
+        "format_options": format_options,
         "history": download_history,
     }
 
@@ -83,33 +90,49 @@ def get_ydl_options(request_options):
         'format': ydl_vars['YDL_FORMAT'],
         'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
         'download_archive': ydl_vars['YDL_ARCHIVE_FILE'],
-        'writesubtitles': True,  # --write-sub
-        'allsubtitles': True,  # --all-subs
-        'ignoreerrors': True,  # --ignore-errors
-        'continue_dl': False,  # --no-continue
-        'nooverwrites': True,  # --no-overwrites
-        'addmetadata': True,  # --add-metadata
-        'writedescription': True,  # --write-description
-        'writeinfojson': True,  # --write-info-json
-        'writeannotations': True,  # --write-annotations
-        'writethumbnail': True,  # --write-thumbnail
-        'embedthumbnail': True,  # --embed-thumbnail
-        'subtitlesformat': "srt",  # --sub-format "srt"
-        'embedsubtitles': True,  # --embed-subs
+        'writesubtitles': True,     # --write-sub
+        'allsubtitles': True,       # --all-subs
+        'ignoreerrors': True,       # --ignore-errors
+        'continue_dl': False,       # --no-continue
+        'nooverwrites': True,       # --no-overwrites
+        'addmetadata': True,        # --add-metadata
+        'writedescription': True,   # --write-description
+        'writeinfojson': True,      # --write-info-json
+        'writeannotations': True,   # --write-annotations
+        'writethumbnail': True,     # --write-thumbnail
+        'embedthumbnail': True,     # --embed-thumbnail
+        'subtitlesformat': "srt",   # --sub-format "srt"
+        'embedsubtitles': True,     # --embed-subs
         'merge_output_format': "mkv",  # --merge-output-format "mkv"
-        'recodevideo': "mkv",  # --recode-video "mkv"
-        'embedsubtitles': True  # --embed-subs
+        'recodevideo': "mkv",       # --recode-video "mkv"
+        'embedsubtitles': True,     # --embed-subs
+        'logger': log
     }
-
 
 def download(url, request_options):
     with youtube_dl.YoutubeDL(get_ydl_options(request_options)) as ydl:
         data = ydl.extract_info(url, download=False)
+        from pprint import pprint
+        pprint(data)
         download_history.append({
             "url": url,
             "title": data["title"]
         })
-        ydl.download([url])
+
+        # Uploader ID
+        # Tags
+        # Thumbnail
+        # Upload date
+        # Description
+        # Display ID?
+        # Formats -> filesize
+        # Playlist ID
+        # Playlist Index
+        #
+
+        # db.execute('INSERT INTO video (youtube_id, url, format, size_B) VALUES (?, ?, ?, ?)', data.)
+
+        # ydl.download([url])
 
 
 download_executor = ThreadPoolExecutor(max_workers=4)
