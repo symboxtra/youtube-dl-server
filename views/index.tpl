@@ -24,8 +24,18 @@
 
 		<form method="POST">
 			<div class="input">
-				<input class="input__url" name="url" type="url" placeholder="URL" aria-label="URL"
-					aria-describedby="button-submit">
+				<input class="input__url" name="url" type="url" placeholder="URL" aria-label="URL" aria-describedby="button-submit">
+
+				<select class="custom-select" name="format">
+					%for category, formats in format_options.items():
+					<optgroup label="{{category}}">
+						%for format in formats:
+						<option value="{{format['value']}}">{{format['label']}}</option>
+						%end
+					</optgroup>
+					%end
+				</select>
+
 				<button class="input__btn" type="submit" id="button-submit">Submit</button>
 			</div>
 		</form>
@@ -41,9 +51,12 @@
 	</main>
 
 	<footer>
-		<p>Web frontend for <a href="https://rg3.github.io/youtube-dl/">youtube-dl</a>,
-			by <a href="https://twitter.com/manbearwiz">@manbearwiz</a>, adapted by <a
-				href="https://github.com/jlnostr">@jlnostr</a>.</p>
+		<p>
+			Web frontend for <a href="https://rg3.github.io/youtube-dl/">youtube-dl</a>
+			by <a href="https://twitter.com/manbearwiz">@manbearwiz</a>,
+			adapted by <a href="https://github.com/jlnostr">@jlnostr</a>,
+			extended by <a href="https://github.com/jmcker">@jmcker</a>.
+		</p>
 	</footer>
 </body>
 
