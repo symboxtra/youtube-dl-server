@@ -44,7 +44,7 @@
 			<h2>History</h2>
 			<ul class="queue">
 				%for item in history:
-				<li><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></li>
+				<li>[{{item["date"]}}] - <a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></li>
 				%end
 			</ul>
 		</div>

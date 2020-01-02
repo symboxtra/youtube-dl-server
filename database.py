@@ -75,7 +75,15 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
     def get_simple_history(self, max_count=15):
 
-        qstring = '''SELECT url, title FROM video LIMIT ?'''
+        qstring = '''
+            SELECT
+                download_datetime AS date,
+                url,
+                title
+            FROM video
+            ORDER BY download_datetime DESC
+            LIMIT ?
+        '''
         cursor = self.db.execute(qstring, [max_count])
 
         return cursor.fetchall()

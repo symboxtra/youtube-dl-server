@@ -129,7 +129,7 @@ def download(url, ydl_options):
 
         log.info(f'Starting download for "{data["title"]}" [{url}]...')
 
-        # ydl.download([url])
+        ydl.download([url])
 
 if (__name__ == '__main__'):
 
