@@ -14,80 +14,76 @@ import youtube_dl
 from bottle import Bottle, redirect, request, route, run, static_file, view
 from database import YtdlSqliteDatabase
 
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
+# Setup a logger for SQL queries
+logging.SQL = logging.DEBUG - 5
+logging.addLevelName(logging.SQL, 'SQL')
+def log_sql(self, msg, *args, **kwargs):
+    if (self.isEnabledFor(logging.SQL)):
+        self._log(logging.SQL, msg, args, **kwargs)
+logging.Logger.sql = log_sql
+
+log = logging.getLogger('youtube-dl-server-subscribed')
+log.setLevel(logging.INFO)
 
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(levelname)s: %(message)s')
 handler.setFormatter(formatter)
 
 log.addHandler(handler)
 
 db = YtdlSqliteDatabase()
-
-# Fill global information
-format_options = db.get_format_options()
-
+print()
 app = Bottle()
-
-app_defaults = {
-    'YDL_FORMAT': '(bestvideo[vcodec^=av01][height>=1080][fps>30]/bestvideo[vcodec=vp9.2][height>=1080][fps>30]/bestvideo[vcodec=vp9][height>=1080][fps>30]/bestvideo[vcodec^=av01][height>=1080]/bestvideo[vcodec=vp9.2][height>=1080]/bestvideo[vcodec=vp9][height>=1080]/bestvideo[height>=1080]/bestvideo[vcodec^=av01][height>=720][fps>30]/bestvideo[vcodec=vp9.2][height>=720][fps>30]/bestvideo[vcodec=vp9][height>=720][fps>30]/bestvideo[vcodec^=av01][height>=720]/bestvideo[vcodec=vp9.2][height>=720]/bestvideo[vcodec=vp9][height>=720]/bestvideo[height>=720]/bestvideo)+(bestaudio[acodec=opus]/bestaudio)/best',
-    'YDL_OUTPUT_TEMPLATE': '/youtube-dl/%(extractor_key)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
-    'YDL_ARCHIVE_FILE': "/youtube-dl/archive.log",
-    'YDL_SERVER_HOST': '0.0.0.0',
-    'YDL_SERVER_PORT': 8080
-}
 
 
 @app.route('/')
 @view('index')
 def dl_queue_list():
     return {
-        "format_options": format_options,
-        "history": download_history,
+        'format_options': db.get_format_options(),
+        'history': download_history,
     }
 
 
-@app.route('/static/:filename#.*#')
+@app.route('/static/<filename:re:.*>')
 def server_static(filename):
     return static_file(filename, root='./static')
 
 
 @app.route('/', method='POST')
 def addToQueue():
-    url = request.forms.get("url")
+    url = request.forms.get('url')
     options = {
-        'format': request.forms.get("format")
+        'format': request.forms.get('format')
     }
 
-    if not url:
-        return {"success": False, "error": "/q called without a 'url' query param"}
+    if (not url):
+        return {'success': False, 'error': '/q called without a "url" query param'}
 
     download_executor.submit(download, url, options)
-    return redirect("/")
+    return redirect('/')
 
 
-@app.route("/update", method="GET")
+@app.route('/update', method='GET')
 def update():
-    command = ["pip", "install", "--upgrade", "youtube-dl"]
+    command = ['pip', 'install', '--upgrade', 'youtube-dl']
     proc = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     output, error = proc.communicate()
     return {
-        "output": output.decode('ascii'),
-        "error":  error.decode('ascii')
+        'output': output.decode('UTF-8'),
+        'error':  error.decode('UTF-8')
     }
 
 
 def get_ydl_options(request_options):
-    ydl_vars = ChainMap(os.environ, app_defaults)
+    ydl_vars = ChainMap(os.environ, db.get_settings())
 
     # List of all options can be found here:
     # https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/options.py
     return {
-        'format': ydl_vars['YDL_FORMAT'],
+        'format': request_options['format'],
         'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
         'download_archive': ydl_vars['YDL_ARCHIVE_FILE'],
         'writesubtitles': True,     # --write-sub
@@ -101,22 +97,23 @@ def get_ydl_options(request_options):
         'writeannotations': True,   # --write-annotations
         'writethumbnail': True,     # --write-thumbnail
         'embedthumbnail': True,     # --embed-thumbnail
-        'subtitlesformat': "srt",   # --sub-format "srt"
+        'subtitlesformat': 'srt',   # --sub-format 'srt'
         'embedsubtitles': True,     # --embed-subs
-        'merge_output_format': "mkv",  # --merge-output-format "mkv"
-        'recodevideo': "mkv",       # --recode-video "mkv"
+        'merge_output_format': 'mkv',  # --merge-output-format 'mkv'
+        'recodevideo': 'mkv',       # --recode-video 'mkv'
         'embedsubtitles': True,     # --embed-subs
         'logger': log
     }
 
 def download(url, request_options):
+
     with youtube_dl.YoutubeDL(get_ydl_options(request_options)) as ydl:
         data = ydl.extract_info(url, download=False)
         from pprint import pprint
         pprint(data)
         download_history.append({
-            "url": url,
-            "title": data["title"]
+            'url': url,
+            'title': data['title']
         })
 
         # Uploader ID
@@ -128,24 +125,26 @@ def download(url, request_options):
         # Formats -> filesize
         # Playlist ID
         # Playlist Index
-        #
+        # Extractor (Youtube/Vimeo/etc)
 
         # db.execute('INSERT INTO video (youtube_id, url, format, size_B) VALUES (?, ?, ?, ?)', data.)
 
         # ydl.download([url])
 
+if (__name__ == '__main__'):
 
-download_executor = ThreadPoolExecutor(max_workers=4)
-download_history = []
+    download_executor = ThreadPoolExecutor(max_workers=4)
+    download_history = []
 
-print("Updating youtube-dl to the newest version")
-updateResult = update()
-print(updateResult["output"])
-print(updateResult["error"])
+    log.info('Updating youtube-dl to the newest version')
+    update_result = update()
 
-print("Started download thread")
+    if (len(update_result['output']) > 0):
+        log.info(update_result['output'])
+    if (len(update_result['error']) > 0):
+        log.warn(update_result['error'])
 
-app_vars = ChainMap(os.environ, app_defaults)
+    app_vars = ChainMap(os.environ, db.get_settings())
 
-app.run(host=app_vars['YDL_SERVER_HOST'],
-        port=app_vars['YDL_SERVER_PORT'], debug=True)
+    app.run(host=app_vars['YDL_SERVER_HOST'],
+            port=app_vars['YDL_SERVER_PORT'], debug=True)

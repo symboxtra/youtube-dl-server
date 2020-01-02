@@ -6,14 +6,14 @@ PRAGMA foreign_keys = ON;
   -- hls_prefer_ffmpeg INTEGER DEFAULT 0,
   -- hls_use_mpegts INTEGER DEFAULT 0
 
-CREATE TABLE IF NOT EXISTS version (
+CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY CHECK (id = 0),
-    major INTEGER NOT NULL,
-    minor INTEGER NOT NULL,
-    revision INTEGER NOT NULL,
-    version TEXT NOT NULL
+    version TEXT NOT NULL,
+    YDL_OUTPUT_TEMPLATE TEXT NOT NULL,
+    YDL_ARCHIVE_FILE TEXT NOT NULL,
+    YDL_SERVER_HOST TEXT NOT NULL,
+    YDL_SERVER_PORT INTEGER NOT NULL
 );
-INSERT INTO version (id, major, minor, revision, version) VALUES (0, 0, 0, 0, '0.0.0');
 
 CREATE TABLE IF NOT EXISTS format_category (
     id INTEGER PRIMARY KEY,
@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS format (
 );
 INSERT INTO format (category_id, label, value)
     VALUES
+        (0, 'Default', '(bestvideo[vcodec^=av01][height>=1080][fps>30]/bestvideo[vcodec=vp9.2][height>=1080][fps>30]/bestvideo[vcodec=vp9][height>=1080][fps>30]/bestvideo[vcodec^=av01][height>=1080]/bestvideo[vcodec=vp9.2][height>=1080]/bestvideo[vcodec=vp9][height>=1080]/bestvideo[height>=1080]/bestvideo[vcodec^=av01][height>=720][fps>30]/bestvideo[vcodec=vp9.2][height>=720][fps>30]/bestvideo[vcodec=vp9][height>=720][fps>30]/bestvideo[vcodec^=av01][height>=720]/bestvideo[vcodec=vp9.2][height>=720]/bestvideo[vcodec=vp9][height>=720]/bestvideo[height>=720]/bestvideo)+(bestaudio[acodec=opus]/bestaudio)/best'),
         (0, 'Best', 'best'),
         (0, 'Best Audio', 'bestaudio'),
         (0, 'Best Video', 'bestvideo'),
@@ -77,10 +78,12 @@ INSERT INTO update_sched (name, frequency_d, description)
 
 CREATE TABLE IF NOT EXISTS video (
     id INTEGER PRIMARY KEY,
-    youtube_id TEXT NOT NULL,
+    online_id TEXT NOT NULL,
     url TEXT,
-    format INTEGER REFERENCES format(id),
-    size_B INTEGER
+    format_id INTEGER REFERENCES format(id),
+    duration_s INTEGER,
+    upload_date TEXT,
+    download_datetime TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS collection_setting (
@@ -88,22 +91,24 @@ CREATE TABLE IF NOT EXISTS collection_setting (
     title_match_regex TEXT,
     title_reject_regex TEXT,
     playlist_start INTEGER DEFAULT 1,
-    playlist_end INTEGER DEFAULT -1,
-    playlist_elems TEXT
+    playlist_end INTEGER DEFAULT -1
 );
 
 CREATE TABLE IF NOT EXISTS collection (
     id INTEGER PRIMARY KEY,
-    youtube_id TEXT NOT NULL,
-    type INTEGER REFERENCES collection_type(id),
-    youtube_title TEXT NOT NULL,
-    custom_title TEXT UNIQUE,
-    start_date TEXT DEFAULT (datetime('now')),
+    type_id INTEGER REFERENCES collection_type(id),
     setting INTEGER REFERENCES collection_setting(id),
-    update_sched INTEGER REFERENCES update_sched(id)
+    update_sched INTEGER REFERENCES update_sched(id),
+    online_id TEXT NOT NULL,
+    online_title TEXT NOT NULL,
+    custom_title TEXT UNIQUE,
+    first_download_datetime TEXT DEFAULT (datetime('now')),
+    last_download_datetime TEXT DEFAULT (datetime('now')),
+    last_update_datetime TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS video_collection_xref (
     video_id INTEGER REFERENCES video(id),
-    collection_id INTEGER REFERENCES collection(id)
+    collection_id INTEGER REFERENCES collection(id),
+    ordering_index INTEGER DEFAULT -1
 );
