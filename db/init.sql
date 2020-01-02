@@ -7,7 +7,7 @@ PRAGMA foreign_keys = ON;
   -- hls_use_mpegts INTEGER DEFAULT 0
 
 CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY CHECK (id = 0),
+    id INTEGER PRIMARY KEY CHECK (id = 1),
     version TEXT NOT NULL,
     YDL_OUTPUT_TEMPLATE TEXT NOT NULL,
     YDL_ARCHIVE_FILE TEXT NOT NULL,
@@ -21,10 +21,10 @@ CREATE TABLE IF NOT EXISTS format_category (
 );
 INSERT INTO format_category (id, category)
     VALUES
-        (0, 'Best'),
-        (1, 'Video'),
-        (2, 'Audio'),
-        (3, 'Worst')
+        (1, 'Best'),
+        (2, 'Video'),
+        (3, 'Audio'),
+        (4, 'Worst')
 ;
 
 CREATE TABLE IF NOT EXISTS format (
@@ -35,33 +35,33 @@ CREATE TABLE IF NOT EXISTS format (
 );
 INSERT INTO format (category_id, label, value)
     VALUES
-        (0, 'Default', '(bestvideo[vcodec^=av01][height>=1080][fps>30]/bestvideo[vcodec=vp9.2][height>=1080][fps>30]/bestvideo[vcodec=vp9][height>=1080][fps>30]/bestvideo[vcodec^=av01][height>=1080]/bestvideo[vcodec=vp9.2][height>=1080]/bestvideo[vcodec=vp9][height>=1080]/bestvideo[height>=1080]/bestvideo[vcodec^=av01][height>=720][fps>30]/bestvideo[vcodec=vp9.2][height>=720][fps>30]/bestvideo[vcodec=vp9][height>=720][fps>30]/bestvideo[vcodec^=av01][height>=720]/bestvideo[vcodec=vp9.2][height>=720]/bestvideo[vcodec=vp9][height>=720]/bestvideo[height>=720]/bestvideo)+(bestaudio[acodec=opus]/bestaudio)/best'),
-        (0, 'Best', 'best'),
-        (0, 'Best Audio', 'bestaudio'),
-        (0, 'Best Video', 'bestvideo'),
-        (1, 'MP4', 'mp4'),
-        (1, 'Flash Video (FLV)', 'flv'),
-        (1, 'WebM', 'webm'),
-        (1, 'Ogg', 'ogg'),
-        (1, 'Matroska (MKV)', 'mkv'),
-        (1, 'AVI', 'avi'),
-        (2, 'AAC', 'aac'),
-        (2, 'FLAC', 'flac'),
-        (2, 'MP3', 'mp3'),
-        (2, 'M4A', 'm4a'),
-        (2, 'Opus', 'opus'),
-        (2, 'Vorbis', 'vorbis'),
-        (2, 'WAV', 'wav'),
-        (3, 'Worst', 'worst'),
-        (3, 'Worst Video', 'worstvideo'),
-        (3, 'Worst Audio', 'worstaudio')
+        (1, 'Default', '(bestvideo[vcodec^=av01][height>=1080][fps>30]/bestvideo[vcodec=vp9.2][height>=1080][fps>30]/bestvideo[vcodec=vp9][height>=1080][fps>30]/bestvideo[vcodec^=av01][height>=1080]/bestvideo[vcodec=vp9.2][height>=1080]/bestvideo[vcodec=vp9][height>=1080]/bestvideo[height>=1080]/bestvideo[vcodec^=av01][height>=720][fps>30]/bestvideo[vcodec=vp9.2][height>=720][fps>30]/bestvideo[vcodec=vp9][height>=720][fps>30]/bestvideo[vcodec^=av01][height>=720]/bestvideo[vcodec=vp9.2][height>=720]/bestvideo[vcodec=vp9][height>=720]/bestvideo[height>=720]/bestvideo)+(bestaudio[acodec=opus]/bestaudio)/best'),
+        (1, 'Best', 'best'),
+        (1, 'Best Audio', 'bestaudio'),
+        (1, 'Best Video', 'bestvideo'),
+        (2, 'MP4', 'mp4'),
+        (2, 'Flash Video (FLV)', 'flv'),
+        (2, 'WebM', 'webm'),
+        (2, 'Ogg', 'ogg'),
+        (2, 'Matroska (MKV)', 'mkv'),
+        (2, 'AVI', 'avi'),
+        (3, 'AAC', 'aac'),
+        (3, 'FLAC', 'flac'),
+        (3, 'MP3', 'mp3'),
+        (3, 'M4A', 'm4a'),
+        (3, 'Opus', 'opus'),
+        (3, 'Vorbis', 'vorbis'),
+        (3, 'WAV', 'wav'),
+        (4, 'Worst', 'worst'),
+        (4, 'Worst Video', 'worstvideo'),
+        (4, 'Worst Audio', 'worstaudio')
 ;
 
 CREATE TABLE IF NOT EXISTS collection_type (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
 );
-INSERT INTO collection_type (name) VALUES ('Channel'), ('Playlist');
+INSERT INTO collection_type (name) VALUES ('Standalone'), ('Channel'), ('Playlist');
 
 CREATE TABLE IF NOT EXISTS update_sched (
     id INTEGER PRIMARY KEY,
@@ -76,32 +76,45 @@ INSERT INTO update_sched (name, frequency_d, description)
         ('Monthly', 30, 'Update approximately monthly')
 ;
 
+CREATE TABLE IF NOT EXISTS extractor (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
 CREATE TABLE IF NOT EXISTS video (
     id INTEGER PRIMARY KEY,
     online_id TEXT NOT NULL,
-    url TEXT,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    collection_id INTEGER REFERENCES collection(id),
+    extractor_id INTEGER REFERENCES extractor(id),
     format_id INTEGER REFERENCES format(id),
     duration_s INTEGER,
     upload_date TEXT,
-    download_datetime TEXT DEFAULT (datetime('now'))
+    download_datetime TEXT DEFAULT (datetime('now')),
+    filepath TEXT
 );
 
 CREATE TABLE IF NOT EXISTS collection_setting (
     id INTEGER PRIMARY KEY,
-    title_match_regex TEXT,
-    title_reject_regex TEXT,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    title_match_regex TEXT DEFAULT '.*',
+    title_reject_regex TEXT DEFAULT '',
     playlist_start INTEGER DEFAULT 1,
     playlist_end INTEGER DEFAULT -1
 );
+INSERT INTO collection_setting (title, description) VALUES ('Everything', 'Match everything');
 
 CREATE TABLE IF NOT EXISTS collection (
     id INTEGER PRIMARY KEY,
-    type_id INTEGER REFERENCES collection_type(id),
-    setting INTEGER REFERENCES collection_setting(id),
-    update_sched INTEGER REFERENCES update_sched(id),
-    online_id TEXT NOT NULL,
+    type_id INTEGER DEFAULT 1 REFERENCES collection_type(id),
+    setting INTEGER DEFAULT 1 REFERENCES collection_setting(id),
+    update_sched INTEGER DEFAULT 1 REFERENCES update_sched(id),
+    online_id TEXT NOT NULL UNIQUE,
     online_title TEXT NOT NULL,
-    custom_title TEXT UNIQUE,
+    custom_title TEXT,
+    url TEXT NOT NULL,
     first_download_datetime TEXT DEFAULT (datetime('now')),
     last_download_datetime TEXT DEFAULT (datetime('now')),
     last_update_datetime TEXT DEFAULT (datetime('now'))

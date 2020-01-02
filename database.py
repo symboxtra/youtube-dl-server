@@ -52,7 +52,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         qstring = '''
             INSERT INTO settings (id, version, YDL_SERVER_HOST, YDL_SERVER_PORT, YDL_OUTPUT_TEMPLATE, YDL_ARCHIVE_FILE)
-            VALUES (0, ?, ?, ?, ?, ?);
+            VALUES (1, ?, ?, ?, ?, ?);
         '''
 
         # Set the default settings for a new database
@@ -60,8 +60,8 @@ class YtdlSqliteDatabase(YtdlDatabase):
             version.__version__,
             '0.0.0.0',
             8080,
-            '/youtube-dl/%(extractor)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
-            '/youtube-dl/archive.log'
+            './youtube-dl/%(extractor)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
+            './youtube-dl/archive.log'
         ])
         self.db.commit()
 
@@ -96,3 +96,71 @@ class YtdlSqliteDatabase(YtdlDatabase):
             categories[category].append(row)
 
         return categories
+
+    def insert_extractor(self, ytdl_info):
+
+        qstring = '''
+            INSERT OR IGNORE INTO extractor (
+                name
+            ) VALUES (?);
+        '''
+        self.db.execute(qstring, [
+            ytdl_info['extractor']
+        ])
+
+        self.db.commit()
+
+    def insert_collection(self, ytdl_info):
+
+        qstring = '''
+            INSERT OR IGNORE INTO collection (
+                online_id,
+                online_title,
+                custom_title,
+                url
+            ) VALUES (?, ?, ?, ?);
+        '''
+        self.db.execute(qstring, [
+            ytdl_info['uploader_id'],
+            ytdl_info['uploader'],
+            ytdl_info['uploader'],
+            ytdl_info['uploader_url']
+        ])
+
+        self.db.commit()
+
+    def insert_video(self, ytdl_info):
+
+        self.insert_extractor(ytdl_info)
+        self.insert_collection(ytdl_info)
+
+        qstring = '''
+            INSERT INTO video (
+                online_id,
+                collection_id,
+                url,
+                title,
+                format_id,
+                duration_s,
+                upload_date
+            )
+            VALUES (?,
+                (SELECT id FROM collection AS c WHERE c.online_id = ?),
+                ?, ?, ?, ?, ?)
+        '''
+
+        self.db.execute(qstring, [
+            ytdl_info['id'],
+            ytdl_info['uploader_id'],
+            ytdl_info['webpage_url'],
+            ytdl_info['title'],
+            1,                  # TODO: Use the actual value from the request
+            ytdl_info['duration'],
+            ytdl_info['upload_date']
+        ])
+
+        self.db.commit()
+
+    def __del__(self):
+
+        self.db.close()

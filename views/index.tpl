@@ -16,8 +16,8 @@
 	<header>
 		<h1>Multimedia content archival</h1>
 		<p class="lead">
-			Provide a <a href="https://rg3.github.io/youtube-dl/supportedsites.html">youtube-dl supported</a> video URL
-			to download the video to the server.
+			Provide a <a href="https://rg3.github.io/youtube-dl/supportedsites.html">youtube-dl supported</a>
+			video URL to download the video to the server.
 		</p>
 	</header>
 	<main>
@@ -30,7 +30,7 @@
 					%for category, formats in format_options.items():
 					<optgroup label="{{category}}">
 						%for format in formats:
-						<option value="{{format['value']}}">{{format['label']}}</option>
+						<option value="{{format['value']}}" title="{{format['value']}}">{{format['label']}}</option>
 						%end
 					</optgroup>
 					%end

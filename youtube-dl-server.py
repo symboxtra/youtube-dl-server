@@ -8,6 +8,7 @@ import sys
 from collections import ChainMap
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from pprint import pprint, pformat
 from threading import Thread
 
 import youtube_dl
@@ -53,15 +54,19 @@ def server_static(filename):
 @app.route('/', method='POST')
 def addToQueue():
     url = request.forms.get('url')
-    options = {
+    request_options = {
         'format': request.forms.get('format')
     }
 
     if (not url):
-        return {'success': False, 'error': '/q called without a "url" query param'}
+        log.warn('Request missing URL')
+        return {'success': False, 'error': 'Missing "url" query parameter'}
 
-    download_executor.submit(download, url, options)
-    return redirect('/')
+    ydl_options = get_ydl_options(db.get_settings(), request_options)
+    # download_executor.submit(download, url, ydl_options)
+    download(url, ydl_options)
+
+    return {'success': True}
 
 
 @app.route('/update', method='GET')
@@ -77,8 +82,8 @@ def update():
     }
 
 
-def get_ydl_options(request_options):
-    ydl_vars = ChainMap(os.environ, db.get_settings())
+def get_ydl_options(db_settings, request_options):
+    ydl_vars = ChainMap(os.environ, db_settings)
 
     # List of all options can be found here:
     # https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/options.py
@@ -102,38 +107,38 @@ def get_ydl_options(request_options):
         'merge_output_format': 'mkv',  # --merge-output-format 'mkv'
         'recodevideo': 'mkv',       # --recode-video 'mkv'
         'embedsubtitles': True,     # --embed-subs
-        'logger': log
+        # 'logger': log
     }
 
-def download(url, request_options):
+def download(url, ydl_options):
 
-    with youtube_dl.YoutubeDL(get_ydl_options(request_options)) as ydl:
+    log.info(f'Processing request for {url}...')
+
+    with youtube_dl.YoutubeDL(ydl_options) as ydl:
+
         data = ydl.extract_info(url, download=False)
-        from pprint import pprint
-        pprint(data)
+
+        log.debug(pformat(data))
+
+        if ('_type' in data):
+            log.info(f'Type is "{data["_type"]}"')
+            log.error ('Playlist and channel downloads are not yet implemented')
+            return
+
         download_history.append({
             'url': url,
             'title': data['title']
         })
 
-        # Uploader ID
-        # Tags
-        # Thumbnail
-        # Upload date
-        # Description
-        # Display ID?
-        # Formats -> filesize
-        # Playlist ID
-        # Playlist Index
-        # Extractor (Youtube/Vimeo/etc)
+        db.insert_video(data)
 
-        # db.execute('INSERT INTO video (youtube_id, url, format, size_B) VALUES (?, ?, ?, ?)', data.)
+        log.info(f'Starting download for "{data["title"]}" [{url}]...')
 
         # ydl.download([url])
 
 if (__name__ == '__main__'):
 
-    download_executor = ThreadPoolExecutor(max_workers=4)
+    # download_executor = ThreadPoolExecutor(max_workers=4)
     download_history = []
 
     log.info('Updating youtube-dl to the newest version')
