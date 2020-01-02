@@ -149,6 +149,11 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 ?, ?, ?, ?, ?)
         '''
 
+        # Convert date to match SQLite format
+        # From YYYYMMDD to YYYY-MM-DD
+        upload_date = ytdl_info['upload_date']
+        upload_date = f'{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}'
+
         self.db.execute(qstring, [
             ytdl_info['id'],
             ytdl_info['uploader_id'],
@@ -156,7 +161,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
             ytdl_info['title'],
             1,                  # TODO: Use the actual value from the request
             ytdl_info['duration'],
-            ytdl_info['upload_date']
+            upload_date
         ])
 
         self.db.commit()
