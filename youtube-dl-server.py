@@ -42,7 +42,7 @@ app = Bottle()
 def dl_queue_list():
     return {
         'format_options': db.get_format_options(),
-        'history': download_history,
+        'history': db.get_simple_history(),
     }
 
 
@@ -125,11 +125,6 @@ def download(url, ydl_options):
             log.error ('Playlist and channel downloads are not yet implemented')
             return
 
-        download_history.append({
-            'url': url,
-            'title': data['title']
-        })
-
         db.insert_video(data)
 
         log.info(f'Starting download for "{data["title"]}" [{url}]...')
@@ -139,7 +134,6 @@ def download(url, ydl_options):
 if (__name__ == '__main__'):
 
     # download_executor = ThreadPoolExecutor(max_workers=4)
-    download_history = []
 
     log.info('Updating youtube-dl to the newest version')
     update_result = update()

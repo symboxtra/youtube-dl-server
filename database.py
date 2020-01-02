@@ -71,7 +71,14 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         cursor = self.db.execute('SELECT * FROM settings;')
 
-        return dict(cursor.fetchone())
+        return cursor.fetchone()
+
+    def get_simple_history(self, max_count=15):
+
+        qstring = '''SELECT url, title FROM video LIMIT ?'''
+        cursor = self.db.execute(qstring, [max_count])
+
+        return cursor.fetchall()
 
     def get_format_options(self):
         '''
