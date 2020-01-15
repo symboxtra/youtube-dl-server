@@ -44,15 +44,20 @@ class YtdlSqliteDatabase(YtdlDatabase):
         Setup all database tables using the initialization script.
         '''
 
-        with open('db/init.sql', mode='r') as f:
+        with open('db/sqlite-init.sql', mode='r') as f:
             qstring = f.read()
 
         self.db.executescript(qstring)
         self.db.commit()
 
         qstring = '''
-            INSERT INTO settings (id, version, YDL_SERVER_HOST, YDL_SERVER_PORT, YDL_OUTPUT_TEMPLATE, YDL_ARCHIVE_FILE)
-            VALUES (1, ?, ?, ?, ?, ?);
+            INSERT INTO settings (
+                version,
+                YDL_SERVER_HOST,
+                YDL_SERVER_PORT,
+                YDL_OUTPUT_TEMPLATE,
+                YDL_ARCHIVE_FILE
+            ) VALUES (?, ?, ?, ?, ?);
         '''
 
         # Set the default settings for a new database
@@ -60,8 +65,8 @@ class YtdlSqliteDatabase(YtdlDatabase):
             version.__version__,
             '0.0.0.0',
             8080,
-            './youtube-dl/%(extractor)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
-            './youtube-dl/archive.log'
+            './downloaded/%(extractor)s/%(uploader)s/[%(upload_date)s] %(title)s [%(id)s].%(ext)s',
+            './downloaded/archive.log'
         ])
         self.db.commit()
 
