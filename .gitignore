@@ -1,7 +1,8 @@
-
-# virtualenv
+.vscode
+__pycache__
 env
 db/*.db
+downloaded
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
