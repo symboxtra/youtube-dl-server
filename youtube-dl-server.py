@@ -50,7 +50,8 @@ def dl_queue_list():
 def server_static(filename):
     return static_file(filename, root='./static')
 
-
+# / Is for backwards compatibility with the original project
+@app.route('/', method='POST')
 @app.route('/api/queue', method='POST')
 def addToQueue():
     url = request.forms.get('url')
