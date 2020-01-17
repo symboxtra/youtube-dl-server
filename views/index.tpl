@@ -22,7 +22,7 @@
 	</header>
 	<main>
 
-		<form method="POST">
+		<form action="api/queue" method="POST">
 			<div class="input">
 				<input class="input__url" name="url" type="url" placeholder="URL" aria-label="URL" aria-describedby="button-submit">
 

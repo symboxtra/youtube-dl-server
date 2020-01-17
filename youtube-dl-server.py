@@ -51,7 +51,7 @@ def server_static(filename):
     return static_file(filename, root='./static')
 
 
-@app.route('/', method='POST')
+@app.route('/api/queue', method='POST')
 def addToQueue():
     url = request.forms.get('url')
     request_options = {
@@ -69,7 +69,7 @@ def addToQueue():
     return {'success': True}
 
 
-@app.route('/update', method='GET')
+@app.route('/api/update', method='GET')
 def update():
     command = ['pip', 'install', '--upgrade', 'youtube-dl']
     proc = subprocess.Popen(
