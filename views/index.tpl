@@ -48,12 +48,14 @@
 					<th>Date/Time</th>
 					<th>Source</th>
 					<th>Title</th>
+					<th>Status</th>
 				</tr>
 				%for item in failed:
 				<tr id="{{item['video_id']}}">
 					<td>{{item["datetime"]}}</td>
 					<td>{{item["extractor"]}}</td>
 					<td><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></td>
+					<td>❌</td>
 				</tr>
 				%end
 			</table>
@@ -67,12 +69,14 @@
 					<th>Date/Time</th>
 					<th>Source</th>
 					<th>Title</th>
+					<th>Status</th>
 				</tr>
 				%for item in queue:
 				<tr id="{{item['video_id']}}">
 					<td>{{item["datetime"]}}</td>
 					<td>{{item["extractor"]}}</td>
 					<td><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></td>
+					<td><img src="static/loading.svg" alt="Loading..." width="32px"></td>
 				</tr>
 				%end
 			</table>
@@ -85,12 +89,14 @@
 					<th>Date/Time</th>
 					<th>Source</th>
 					<th>Title</th>
+					<th>Status</th>
 				</tr>
 				%for item in history:
 				<tr id="{{item['video_id']}}">
 					<td>{{item["datetime"]}}</td>
 					<td>{{item["extractor"]}}</td>
 					<td><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></td>
+					<td>✅</td>
 				</tr>
 				%end
 			</table>
