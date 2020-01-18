@@ -24,7 +24,15 @@ table, tr, th, td {
   text-overflow: ellipsis;
 }
 
-.history {
+h1, footer {
+  text-align: center;
+}
+
+footer a {
+  color: darkgray
+}
+
+.queue, .history {
   width: 100%;
 }
 
@@ -33,12 +41,4 @@ table, tr, th, td {
   grid-template-columns: 2fr 1fr;
   column-gap: 8px;
   row-gap: 8px;
-}
-
-h1, footer {
-  text-align: center;
-}
-
-footer a {
-  color: darkgray
 }

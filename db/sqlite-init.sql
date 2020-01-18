@@ -125,18 +125,48 @@ CREATE TABLE IF NOT EXISTS video_collection_xref (
     ordering_index INTEGER DEFAULT -1
 );
 
+CREATE TABLE IF NOT EXISTS download_in_progress (
+    video_id INTEGER REFERENCES video(id),
+    start_datetime TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS download_failed (
+    video_id INTEGER UNIQUE REFERENCES video(id),
+    last_fail_datetime TEXT DEFAULT (datetime('now'))
+);
+
 
 -- Views
 
-DROP VIEW IF EXISTS download_history;
-CREATE VIEW download_history
-    AS SELECT
+DROP VIEW IF EXISTS all_recent_video;
+CREATE VIEW all_recent_video AS
+    SELECT
         v.id AS video_id,
         download_datetime AS datetime,
         e.name AS extractor,
         url,
-        title
+        title,
+        (v.id IN (SELECT video_id FROM download_in_progress)) AS in_progress,
+        (v.id IN (SELECT video_id FROM download_failed)) AS failed
     FROM video AS v
         LEFT JOIN extractor AS e ON v.extractor_id = e.id
     ORDER BY download_datetime DESC
+;
+
+DROP VIEW IF EXISTS download_queue;
+CREATE VIEW download_queue AS
+    SELECT *
+    FROM all_recent_video
+    WHERE
+        in_progress = 1
+        AND failed = 0
+;
+
+DROP VIEW IF EXISTS download_history;
+CREATE VIEW download_history AS
+    SELECT *
+    FROM all_recent_video
+    WHERE
+        in_progress = 0
+        AND failed = 0
 ;

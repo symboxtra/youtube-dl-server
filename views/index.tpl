@@ -41,6 +41,24 @@
 		</form>
 
 		<div>
+			<h2>Queued</h2>
+			<table class="queue">
+				<tr>
+					<th>Date/Time</th>
+					<th>Source</th>
+					<th>Title</th>
+				</tr>
+				%for item in queue:
+				<tr id="{{item['video_id']}}">
+					<td>{{item["datetime"]}}</td>
+					<td>{{item["extractor"]}}</td>
+					<td><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></td>
+				</tr>
+				%end
+			</table>
+		</div>
+
+		<div>
 			<h2>History</h2>
 			<table class="history">
 				<tr>
