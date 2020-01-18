@@ -8,12 +8,50 @@ import version
 log = logging.getLogger('youtube-dl-server-subscribed')
 
 class YtdlDatabase(ABC):
+    '''
+    Abstract class for database-specific implementations.
+
+    Any queries that do not require obvious database-specific
+    extensions are implemented in the base class. Queries that require
+    database-specific implementation are marked as abstract and must be
+    implemented by the child class.
+    '''
 
     @abstractmethod
     def __init__(self, connection_params={}):
         pass
 
     @abstractmethod
+    def _begin(self):
+        '''
+        Start a transaction.
+        '''
+        pass
+
+    @abstractmethod
+    def _execute(self, qstring, parameters=[]):
+        '''
+        Execute the query string with the given parameters.
+
+        return: List of dictionary-like objects that can be indexed via column name.
+        '''
+        pass
+
+    @abstractmethod
+    def _commit(self):
+        '''
+        Finalize transaction.
+        '''
+        pass
+
+    @abstractmethod
+    def result_to_simple_type(self, result):
+        '''
+        Convert the list of dictionary-like objects returned by `execute`
+        into simple Python types (i.e. dict and list).
+        '''
+        pass
+
     def get_settings(self):
         '''
         Fetch the stored settings.
@@ -21,14 +59,16 @@ class YtdlDatabase(ABC):
         These represent the settings stored in the database.
         They may be overriden by environment variables elsewhere in the program.
         '''
-        pass
 
-    @abstractmethod
+        return self._execute('''SELECT * FROM settings''')[0]
+
     def get_download_history(self, max_count=15):
         '''
         Fetch up to `max_count` of the latest video downloads.
         '''
-        pass
+
+        qstring = '''SELECT * FROM download_history LIMIT ?'''
+        return self._execute(qstring, [max_count])
 
     @abstractmethod
     def get_format_options(self):
@@ -61,49 +101,96 @@ class YtdlDatabase(ABC):
         '''
         pass
 
-    @abstractmethod
     def get_download_queue(self, max_count=15):
         '''
         Get information about the currently downloading
         videos in the same format as `get_download_history`.
         '''
-        pass
 
-    @abstractmethod
+        qstring = '''SELECT * FROM download_queue LIMIT ?'''
+        return self._execute(qstring, [max_count])
+
     def clear_download_queue(self):
         '''
         Clear the download queue.
         '''
-        pass
 
-    @abstractmethod
+        qstring = '''DELETE FROM download_in_progress'''
+        self._execute(qstring)
+        self._commit()
+
     def mark_download_started(self, video_db_id):
         '''
         Add the given video to the download queue.
         '''
-        pass
 
-    @abstractmethod
+        self._begin()
+        qstring = '''
+            INSERT INTO download_in_progress (
+                video_id
+            ) VALUES (?)
+        '''
+        self._execute(qstring, [video_db_id])
+        self._commit()
+
     def mark_download_ended(self, video_db_id, success):
         '''
         Remove the given video from the download queue
         and mark it as a success or failure.
         '''
-        pass
 
-    @abstractmethod
+        self._begin()
+        qstring = '''
+            DELETE FROM download_in_progress
+            WHERE video_id = ?
+        '''
+        self._execute(qstring, [video_db_id])
+        self._commit()
+
+        if (not success):
+            self.mark_download_failed(video_db_id)
+        else:
+            self.mark_download_unfailed(video_db_id)
+
     def mark_download_failed(self, video_db_id):
         '''
         Add the given video to the list of failed videos.
         '''
-        pass
 
-    @abstractmethod
+        self._begin()
+        qstring = '''
+            INSERT INTO download_failed (
+                video_id
+            ) VALUES (?)
+        '''
+        self._execute(qstring, [video_db_id])
+        self._commit()
+
     def mark_download_unfailed(self, video_db_id):
         '''
         Remove a video from the list of failed videos if present.
         '''
-        pass
+
+        self._begin()
+        qstring = '''
+            DELETE FROM download_failed
+            WHERE video_id = ?
+        '''
+        self._execute(qstring, [video_db_id])
+        self._commit()
+
+    def get_download_failures(self):
+        '''
+        Get infomration about videos that failed to
+        download.
+        '''
+
+        qstring = '''
+            SELECT * FROM all_download
+            WHERE video_id IN
+                (SELECT video_id FROM download_failed)
+        '''
+        return self._execute(qstring)
 
 class YtdlSqliteDatabase(YtdlDatabase):
 
@@ -127,6 +214,17 @@ class YtdlSqliteDatabase(YtdlDatabase):
         if (is_new_db):
             self.init_new_database()
 
+    def _begin(self):
+        # Do nothing since transactions are automatic on write with sqlite3
+        pass
+
+    def _execute(self, qstring, parameters=[]):
+        cursor = self.db.execute(qstring, parameters)
+        return cursor.fetchall()
+
+    def _commit(self):
+        self.db.commit()
+
     def result_to_simple_type(self, result):
         return [dict(row) for row in result]
 
@@ -138,9 +236,11 @@ class YtdlSqliteDatabase(YtdlDatabase):
         with open('db/sqlite-init.sql', mode='r') as f:
             qstring = f.read()
 
+        self._begin()
         self.db.executescript(qstring)
-        self.db.commit()
+        self._commit()
 
+        self._begin()
         qstring = '''
             INSERT INTO settings (
                 version,
@@ -159,24 +259,9 @@ class YtdlSqliteDatabase(YtdlDatabase):
             './downloaded/%(extractor)s/%(uploader)s/[%(upload_date)s] %(title)s [%(id)s].%(ext)s',
             './downloaded/archive.log'
         ])
-        self.db.commit()
+        self._commit()
 
         log.info('Initialized SQLite database')
-
-    def get_settings(self):
-
-        cursor = self.db.execute('SELECT * FROM settings;')
-
-        return cursor.fetchone()
-
-    def get_download_history(self, max_count=15):
-
-        qstring = '''
-            SELECT * FROM download_history LIMIT ?
-        '''
-        cursor = self.db.execute(qstring, [max_count])
-
-        return cursor.fetchall()
 
     def get_format_options(self):
 
@@ -187,10 +272,10 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 ON f.category_id = fc.id;
         '''
 
-        c = self.db.execute(qstring)
+        cursor = self.db.execute(qstring)
 
         categories = {}
-        for row in c:
+        for row in cursor:
             category = row['category']
             if category not in categories:
                 categories[category] = []
@@ -201,6 +286,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
     def insert_extractor(self, ytdl_info):
 
+        self._begin()
         qstring = '''
             INSERT OR IGNORE INTO extractor (
                 name
@@ -212,10 +298,11 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         log.debug(f'Extractor lastrowid: {cursor.lastrowid}')
 
-        self.db.commit()
+        self._commit()
 
     def insert_collection(self, ytdl_info):
 
+        self._begin()
         qstring = '''
             INSERT OR IGNORE INTO collection (
                 online_id,
@@ -233,10 +320,11 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         log.debug(f'Collection lastrowid: {cursor.lastrowid}')
 
-        self.db.commit()
+        self._commit()
 
     def insert_video(self, ytdl_info):
 
+        self._begin()
         qstring = '''
             INSERT INTO video (
                 online_id,
@@ -293,79 +381,9 @@ class YtdlSqliteDatabase(YtdlDatabase):
             ytdl_info['uploader_id']
         ])
 
-        self.db.commit()
+        self._commit()
 
         return video_id
-
-    def get_download_queue(self, max_count=15):
-
-        qstring = '''
-            SELECT * FROM download_queue LIMIT ?
-        '''
-        cursor = self.db.execute(qstring, [max_count])
-
-        return cursor.fetchall()
-
-    def clear_download_queue(self):
-
-        qstring = '''DELETE FROM download_in_progress'''
-        self.db.execute(qstring)
-        self.db.commit()
-
-    def mark_download_started(self, video_db_id):
-
-        qstring = '''
-            INSERT INTO download_in_progress (
-                video_id
-            ) VALUES (?)
-        '''
-        self.db.execute(qstring, [video_db_id])
-        self.db.commit()
-
-    def mark_download_ended(self, video_db_id, success):
-
-        qstring = '''
-            DELETE FROM download_in_progress
-            WHERE video_id = ?
-        '''
-        self.db.execute(qstring, [video_db_id])
-
-        if (not success):
-            self.mark_download_failed(video_db_id)
-        else:
-            self.mark_download_unfailed(video_db_id)
-
-        self.db.commit()
-
-    def mark_download_failed(self, video_db_id):
-
-        qstring = '''
-            INSERT INTO download_failed (
-                video_id
-            ) VALUES (?)
-        '''
-        self.db.execute(qstring, [video_db_id])
-        self.db.commit()
-
-    def mark_download_unfailed(self, video_db_id):
-
-        qstring = '''
-            DELETE FROM download_failed
-            WHERE video_id = ?
-        '''
-        self.db.execute(qstring, [video_db_id])
-        self.db.commit()
-
-    def get_download_failures(self):
-
-        qstring = '''
-            SELECT * FROM all_recent_video
-            WHERE video_id IN
-                (SELECT video_id FROM download_failed)
-        '''
-        cursor = self.db.execute(qstring)
-
-        return cursor.fetchall()
 
     def __del__(self):
 
