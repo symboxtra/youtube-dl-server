@@ -40,6 +40,26 @@
 			</div>
 		</form>
 
+		%if (len(failed) > 0):
+		<div>
+			<h2>Failed</h2>
+			<table class="failed">
+				<tr>
+					<th>Date/Time</th>
+					<th>Source</th>
+					<th>Title</th>
+				</tr>
+				%for item in failed:
+				<tr id="{{item['video_id']}}">
+					<td>{{item["datetime"]}}</td>
+					<td>{{item["extractor"]}}</td>
+					<td><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></td>
+				</tr>
+				%end
+			</table>
+		</div>
+		%end
+
 		<div>
 			<h2>Queued</h2>
 			<table class="queue">

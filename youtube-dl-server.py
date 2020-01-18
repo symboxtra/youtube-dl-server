@@ -42,6 +42,7 @@ app = Bottle()
 def bottle_index():
     return {
         'format_options': main_thread_db.get_format_options(),
+        'failed': main_thread_db.get_download_failures(),
         'queue': main_thread_db.get_download_queue(),
         'history': main_thread_db.get_download_history(),
     }
@@ -55,7 +56,7 @@ def bottle_get_queue():
     download_queue = main_thread_db.result_to_simple_type(main_thread_db.get_download_queue())
     return {
         'count': len(download_queue),
-        'queue': download_queue
+        'items': download_queue
     }
 
 # / is for backwards compatibility with the original project
@@ -68,14 +69,25 @@ def bottle_add_to_queue():
     }
 
     if (not url):
-        log.warn('Request missing URL')
-        return {'success': False, 'error': 'Missing "url" query parameter'}
+        log.warning('Request missing URL')
+        response.status = 400
+        return {'error': "Missing 'url' query parameter"}
 
     download_executor.submit(download, url, request_options)
 
-    return {'success': True}
+    return bottle_get_queue()
 
-@app.route('/api/update', method='GET')
+@app.route('/api/failed', method='GET')
+def bottle_get_failed():
+    failed = main_thread_db.result_to_simple_type(main_thread_db.get_download_failures())
+    return {
+        'count': len(failed),
+        'items': failed
+    }
+
+# /update is for backwards compatibility with the original project
+@app.route('/update', method='GET')
+@app.route('/api/pip/update', method='GET')
 def bottle_update():
     command = ['pip', 'install', '--upgrade', 'youtube-dl']
     proc = subprocess.Popen(
@@ -168,7 +180,7 @@ if (__name__ == '__main__'):
     if (len(update_result['output']) > 0):
         log.info(update_result['output'])
     if (len(update_result['error']) > 0):
-        log.warn(update_result['error'])
+        log.warning(update_result['error'])
 
     app_vars = ChainMap(os.environ, main_thread_db.get_settings())
 

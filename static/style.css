@@ -32,7 +32,7 @@ footer a {
   color: darkgray
 }
 
-.queue, .history {
+.failed, .queue, .history {
   width: 100%;
 }
 

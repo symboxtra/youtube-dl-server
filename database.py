@@ -356,6 +356,17 @@ class YtdlSqliteDatabase(YtdlDatabase):
         self.db.execute(qstring, [video_db_id])
         self.db.commit()
 
+    def get_download_failures(self):
+
+        qstring = '''
+            SELECT * FROM all_recent_video
+            WHERE video_id IN
+                (SELECT video_id FROM download_failed)
+        '''
+        cursor = self.db.execute(qstring)
+
+        return cursor.fetchall()
+
     def __del__(self):
 
         self.db.close()
