@@ -86,7 +86,6 @@ CREATE TABLE IF NOT EXISTS video (
     online_id TEXT NOT NULL,
     url TEXT NOT NULL,
     title TEXT NOT NULL,
-    collection_id INTEGER REFERENCES collection(id),
     extractor_id INTEGER REFERENCES extractor(id),
     format_id INTEGER REFERENCES format(id),
     duration_s INTEGER,
@@ -125,3 +124,19 @@ CREATE TABLE IF NOT EXISTS video_collection_xref (
     collection_id INTEGER REFERENCES collection(id),
     ordering_index INTEGER DEFAULT -1
 );
+
+
+-- Views
+
+DROP VIEW IF EXISTS download_history;
+CREATE VIEW download_history
+    AS SELECT
+        v.id AS video_id,
+        download_datetime AS datetime,
+        e.name AS extractor,
+        url,
+        title
+    FROM video AS v
+        LEFT JOIN extractor AS e ON v.extractor_id = e.id
+    ORDER BY download_datetime DESC
+;

@@ -17,6 +17,17 @@ a {
   text-decoration: none;
 }
 
+table, tr, th, td {
+  border: 1px solid black;
+  border-collapse: collapse;
+  padding: 7px;
+  text-overflow: ellipsis;
+}
+
+.history {
+  width: 100%;
+}
+
 .input {
   display: grid;
   grid-template-columns: 2fr 1fr;

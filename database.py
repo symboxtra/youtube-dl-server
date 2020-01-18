@@ -81,13 +81,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
     def get_simple_history(self, max_count=15):
 
         qstring = '''
-            SELECT
-                download_datetime AS date,
-                url,
-                title
-            FROM video
-            ORDER BY download_datetime DESC
-            LIMIT ?
+            SELECT * FROM download_history LIMIT ?
         '''
         cursor = self.db.execute(qstring, [max_count])
 
@@ -124,9 +118,11 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 name
             ) VALUES (?);
         '''
-        self.db.execute(qstring, [
+        cursor = self.db.execute(qstring, [
             ytdl_info['extractor']
         ])
+
+        log.debug(f'Extractor lastrowid: {cursor.lastrowid}')
 
         self.db.commit()
 
@@ -140,12 +136,14 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 url
             ) VALUES (?, ?, ?, ?);
         '''
-        self.db.execute(qstring, [
+        cursor = self.db.execute(qstring, [
             ytdl_info['uploader_id'],
             ytdl_info['uploader'],
             ytdl_info['uploader'],
             ytdl_info['uploader_url']
         ])
+
+        log.debug(f'Collection lastrowid: {cursor.lastrowid}')
 
         self.db.commit()
 
@@ -157,7 +155,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
         qstring = '''
             INSERT INTO video (
                 online_id,
-                collection_id,
+                extractor_id,
                 url,
                 title,
                 format_id,
@@ -165,8 +163,8 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 upload_date
             )
             VALUES (?,
-                (SELECT id FROM collection AS c WHERE c.online_id = ?),
-                ?, ?, ?, ?, ?)
+                (SELECT id FROM extractor WHERE name = ?),
+            ?, ?, ?, ?, ?)
         '''
 
         # Convert date to match SQLite format
@@ -174,14 +172,31 @@ class YtdlSqliteDatabase(YtdlDatabase):
         upload_date = ytdl_info['upload_date']
         upload_date = f'{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}'
 
-        self.db.execute(qstring, [
+        cursor = self.db.execute(qstring, [
             ytdl_info['id'],
-            ytdl_info['uploader_id'],
+            ytdl_info['extractor'],
             ytdl_info['webpage_url'],
             ytdl_info['title'],
             1,                  # TODO: Use the actual value from the request
             ytdl_info['duration'],
             upload_date
+        ])
+
+        log.debug(f'Video lastrowid: {cursor.lastrowid}')
+
+        qstring = '''
+            INSERT INTO video_collection_xref (
+                video_id,
+                collection_id
+            ) VALUES (
+                (SELECT id FROM video AS v WHERE v.rowid = ?),
+                (SELECT id FROM collection AS c WHERE c.online_id = ?)
+            )
+        '''
+
+        self.db.execute(qstring, [
+            cursor.lastrowid,
+            ytdl_info['uploader_id']
         ])
 
         self.db.commit()

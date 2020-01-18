@@ -42,11 +42,20 @@
 
 		<div>
 			<h2>History</h2>
-			<ul class="queue">
+			<table class="history">
+				<tr>
+					<th>Date/Time</th>
+					<th>Source</th>
+					<th>Title</th>
+				</tr>
 				%for item in history:
-				<li>[{{item["date"]}}] - <a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></li>
+				<tr id="{{item['video_id']}}">
+					<td>{{item["datetime"]}}</td>
+					<td>{{item["extractor"]}}</td>
+					<td><a href="{{item["url"]}}" target="blank">{{item["title"]}}</a></td>
+				</tr>
 				%end
-			</ul>
+			</table>
 		</div>
 	</main>
 
