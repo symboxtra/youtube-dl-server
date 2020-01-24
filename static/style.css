@@ -33,7 +33,7 @@ footer a {
   color: darkgray
 }
 
-.failed, .queue, .history {
+.data-table {
   width: 100%;
 }
 
