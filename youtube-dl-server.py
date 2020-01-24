@@ -12,7 +12,7 @@ from pprint import pformat, pprint
 from threading import Thread
 
 import youtube_dl
-from bottle import Bottle, request, response, route, run, static_file, view
+from bottle import Bottle, HTTPError, request, response, route, run, static_file, view
 from database import YtdlSqliteDatabase
 
 # Setup a logger for SQL queries
@@ -37,7 +37,7 @@ print()
 app = Bottle()
 
 
-@app.route('/')
+@app.get('/')
 @view('index')
 def bottle_index():
     return {
@@ -47,11 +47,35 @@ def bottle_index():
         'history': main_thread_db.get_download_history(),
     }
 
-@app.route('/static/<filename:re:.*>')
+@app.get('/video/<video_db_id:re:[0-9]*>')
+@view('video')
+def bottle_video_by_id(video_db_id):
+    data = main_thread_db.get_video(video_db_id)
+
+    if (data is None):
+        raise HTTPError(404, f'Could not find video the requested video.')
+
+    return {
+        'item': data
+    }
+
+@app.get('/video/<extractor>/<video_online_id>')
+@view('video')
+def bottle_video_by_extractor(extractor, video_online_id):
+    data = main_thread_db.get_video_by_extractor(extractor, video_online_id)
+
+    if (data is None):
+        raise HTTPError(404, f'Could not find video the requested video.')
+
+    return {
+        'item': data
+    }
+
+@app.get('/static/<filename:re:.*>')
 def bottle_static(filename):
     return static_file(filename, root='./static')
 
-@app.route('/api/queue', method='GET')
+@app.get('/api/queue')
 def bottle_get_queue():
     download_queue = main_thread_db.result_to_simple_type(main_thread_db.get_download_queue())
     return {
@@ -60,24 +84,24 @@ def bottle_get_queue():
     }
 
 # / is for backwards compatibility with the original project
-@app.route('/', method='POST')
-@app.route('/api/queue', method='POST')
+@app.post('/')
+@app.post('/api/queue')
 def bottle_add_to_queue():
     url = request.forms.get('url')
     request_options = {
+        'url': url,
         'format': request.forms.get('format')
     }
 
     if (not url):
-        log.warning('Request missing URL')
-        response.status = 400
-        return {'error': "Missing 'url' query parameter"}
+        raise HTTPError(400, "Missing 'url' query parameter")
 
-    download_executor.submit(download, url, request_options)
+    download(url, request_options)
+    # download_executor.submit(download, url, request_options)
 
     return bottle_get_queue()
 
-@app.route('/api/failed', method='GET')
+@app.get('/api/failed')
 def bottle_get_failed():
     failed = main_thread_db.result_to_simple_type(main_thread_db.get_download_failures())
     return {
@@ -86,8 +110,8 @@ def bottle_get_failed():
     }
 
 # /update is for backwards compatibility with the original project
-@app.route('/update', method='GET')
-@app.route('/api/pip/update', method='GET')
+@app.get('/update')
+@app.get('/api/pip/update')
 def bottle_update():
     command = ['pip', 'install', '--upgrade', 'youtube-dl']
     proc = subprocess.Popen(
@@ -100,13 +124,13 @@ def bottle_update():
     }
 
 
-def get_ydl_options(db_settings, request_options):
-    ydl_vars = ChainMap(os.environ, db_settings)
+def get_ydl_options(db, request_options):
+    ydl_vars = ChainMap(os.environ, db.get_settings())
 
     # List of all options can be found here:
     # https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/options.py
     return {
-        'format': request_options['format'],
+        'format': db.get_format(request_options['format']),
         'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
         # 'download_archive': ydl_vars['YDL_ARCHIVE_FILE'],
         'writesubtitles': True,     # --write-sub
@@ -133,7 +157,7 @@ def download(url, request_options):
 
     # Open a connection to the database
     child_thread_db = YtdlSqliteDatabase()
-    ydl_options = get_ydl_options(child_thread_db.get_settings(), request_options)
+    ydl_options = get_ydl_options(child_thread_db, request_options)
 
     with youtube_dl.YoutubeDL(ydl_options) as ydl:
 
@@ -146,10 +170,12 @@ def download(url, request_options):
             log.error ('Playlist and channel downloads are not yet implemented')
             return
 
+        normalize_fields(data)
+
         # Insert the video into the database
         child_thread_db.insert_extractor(data)
         child_thread_db.insert_collection(data)
-        video_id = child_thread_db.insert_video(data)
+        video_id = child_thread_db.insert_video(data, request_options)
 
         # Insert the video in the download queue
         child_thread_db.mark_download_started(video_id)
@@ -170,9 +196,43 @@ def download(url, request_options):
 
         child_thread_db.mark_download_ended(video_id, success=success)
 
+def normalize_fields(ytdl_info):
+    '''
+    Make sure any fields that we rely on exist.
+    If they don't, fake them using other values or None.
+    '''
+
+    field_mapping = {
+        'extractor': None,
+        'uploader': None,
+        'uploader_id': 'uploader',
+        'uploader_url': None,
+        'upload_date': None,
+        'title': None,
+        'id': None,
+        'duration': None,
+        'ext': 'unk',
+        'webpage_url': None
+    }
+
+    # Loop through once and loosely fill in what we can.
+    # Does not attempt to do any chaining or anything with something
+    # like A -> B -> C, unless they happen to already be in order.
+    for required_key, alternative in field_mapping.items():
+
+        if (not required_key in ytdl_info):
+            log.warning(f'Missing metadata key: {required_key}')
+
+            ytdl_info[required_key] = None
+
+            if (alternative in ytdl_info):
+                ytdl_info[required_key] = ytdl_info[alternative]
+
+            log.debug(f'Set {required_key} to {ytdl_info[required_key]} using {alternative}')
+
 if (__name__ == '__main__'):
 
-    download_executor = ThreadPoolExecutor(max_workers=4)
+    # download_executor = ThreadPoolExecutor(max_workers=4)
 
     log.info('Updating youtube-dl to the newest version')
     update_result = bottle_update()

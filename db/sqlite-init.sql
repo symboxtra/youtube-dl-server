@@ -91,7 +91,9 @@ CREATE TABLE IF NOT EXISTS video (
     duration_s INTEGER,
     upload_date TEXT,
     download_datetime TEXT DEFAULT (datetime('now')),
-    filepath TEXT
+    filepath TEXT,
+    filepath_exists INTEGER CHECK (filepath_exists = 0 OR filepath_exists = 1),
+    filepath_last_checked TEXT
 );
 
 CREATE TABLE IF NOT EXISTS collection_setting (
@@ -109,11 +111,11 @@ CREATE TABLE IF NOT EXISTS collection (
     id INTEGER PRIMARY KEY,
     type_id INTEGER DEFAULT 1 REFERENCES collection_type(id),
     setting INTEGER DEFAULT 1 REFERENCES collection_setting(id),
-    update_sched INTEGER DEFAULT 1 REFERENCES update_sched(id),
+    update_sched_id INTEGER DEFAULT 1 REFERENCES update_sched(id),
     online_id TEXT NOT NULL UNIQUE,
     online_title TEXT NOT NULL,
     custom_title TEXT,
-    url TEXT NOT NULL,
+    url TEXT,
     first_download_datetime TEXT DEFAULT (datetime('now')),
     last_download_datetime TEXT DEFAULT (datetime('now')),
     last_update_datetime TEXT DEFAULT (datetime('now'))

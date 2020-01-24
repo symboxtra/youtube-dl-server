@@ -62,6 +62,83 @@ class YtdlDatabase(ABC):
 
         return self._execute('''SELECT * FROM settings''')[0]
 
+    def get_format(self, format_id):
+        '''
+        Fetch the ytdl format string associated with the given id.
+
+        Defaults to 'best' if no format is found.
+        '''
+
+        qstring = '''
+            SELECT value FROM format WHERE id = ?
+        '''
+        result = self._execute(qstring, [format_id])
+
+        if (len(result) == 0):
+            return 'best'
+
+        return result[0]['value']
+
+    def get_video(self, video_db_id):
+        '''
+        Fetch video information for the given video.
+
+        Returns `None` if no such video exists.
+        '''
+
+        qstring = '''
+            SELECT * FROM video AS v
+                LEFT JOIN extractor AS e ON v.extractor_id = e.id
+                LEFT JOIN format AS f ON v.format_id = f.id
+                LEFT JOIN all_download AS a ON v.id = a.video_id
+            WHERE
+                v.id = ?
+        '''
+        result = self._execute(qstring, [video_db_id])
+
+        if (len(result) == 0):
+            return None
+
+        return result[0]
+
+    def get_video_by_extractor(self, extractor, online_id):
+        '''
+        Fetch video information for the most recent video that
+        matches the given extractor and extractor-specific id.
+
+        Returns `None` if no result is found.
+        '''
+
+        qstring = '''
+            SELECT id FROM video
+            WHERE
+                extractor_id = (SELECT id FROM extractor WHERE name = ?)
+                AND online_id = ?
+            ORDER BY download_datetime DESC
+        '''
+        result = self._execute(qstring, [extractor, online_id])
+
+        if (len(result) == 0):
+            return None
+
+        video_db_id = result[0]['id']
+
+        return self.get_video(video_db_id)
+
+    def get_video_parent_collections(self, video_db_id):
+        '''
+        Fetch collection information for the given video.
+        '''
+
+        qstring = '''
+            SELECT * FROM collection AS c
+                LEFT JOIN collection_type AS t ON c.type_id = t.id
+                LEFT JOIN update_sched AS u ON c.update_sched_id = u.id
+            WHERE
+                c.id = ?
+        '''
+        return self._execute(qstring, [video_db_id])
+
     def get_download_history(self, max_count=15):
         '''
         Fetch up to `max_count` of the latest video downloads.
@@ -266,7 +343,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
     def get_format_options(self):
 
         qstring = '''
-            SELECT category, label, value
+            SELECT f.id, category, label, value
             FROM format AS f
             LEFT JOIN format_category AS fc
                 ON f.category_id = fc.id;
@@ -322,7 +399,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         self._commit()
 
-    def insert_video(self, ytdl_info):
+    def insert_video(self, ytdl_info, request_options):
 
         self._begin()
         qstring = '''
@@ -333,26 +410,35 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 title,
                 format_id,
                 duration_s,
-                upload_date
+                upload_date,
+                filepath
             )
             VALUES (?,
                 (SELECT id FROM extractor WHERE name = ?),
-            ?, ?, ?, ?, ?)
+            ?, ?, ?, ?, ?, ?)
         '''
 
         # Convert date to match SQLite format
         # From YYYYMMDD to YYYY-MM-DD
         upload_date = ytdl_info['upload_date']
-        upload_date = f'{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}'
+        if (upload_date):
+            upload_date = f'{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}'
+
+        # Generate the output file path based on the output template
+        filepath_fstring = self.get_settings()['YDL_OUTPUT_TEMPLATE']
+        filepath = filepath_fstring % ytdl_info
+
+        log.debug(f'Populated output template: {filepath}')
 
         cursor = self.db.execute(qstring, [
             ytdl_info['id'],
             ytdl_info['extractor'],
             ytdl_info['webpage_url'],
             ytdl_info['title'],
-            1,                  # TODO: Use the actual value from the request
+            request_options['format'],
             ytdl_info['duration'],
-            upload_date
+            upload_date,
+            filepath
         ])
 
         log.debug(f'Video lastrowid: {cursor.lastrowid}')
