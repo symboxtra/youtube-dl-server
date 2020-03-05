@@ -7,6 +7,9 @@ import version
 
 log = logging.getLogger('youtube-dl-server-subscribed')
 
+class YtdlDatabaseError(Exception):
+    pass
+
 class YtdlDatabase(ABC):
     '''
     Abstract class for database-specific implementations.
@@ -16,6 +19,14 @@ class YtdlDatabase(ABC):
     database-specific implementation are marked as abstract and must be
     implemented by the child class.
     '''
+
+    # Enums based on order of insertion for SQlite
+    class formats:
+        DEFAULT = 1
+
+    class collection:
+        CHANNEL = 1
+        PLAYLIST = 2
 
     @abstractmethod
     def __init__(self, connection_params={}):
@@ -47,7 +58,7 @@ class YtdlDatabase(ABC):
     @abstractmethod
     def result_to_simple_type(self, result):
         '''
-        Convert the list of dictionary-like objects returned by `execute`
+        Convert the list of dictionary-like objects returned by `_execute`
         into simple Python types (i.e. dict and list).
         '''
         pass
@@ -101,10 +112,9 @@ class YtdlDatabase(ABC):
 
         return result[0]
 
-    def get_video_by_extractor(self, extractor, online_id):
+    def get_video_by_extractor_id(self, extractor_name, online_id):
         '''
-        Fetch video information for the most recent video that
-        matches the given extractor and extractor-specific id.
+        Fetch video information for the given video.
 
         Returns `None` if no result is found.
         '''
@@ -116,7 +126,7 @@ class YtdlDatabase(ABC):
                 AND online_id = ?
             ORDER BY download_datetime DESC
         '''
-        result = self._execute(qstring, [extractor, online_id])
+        result = self._execute(qstring, [extractor_name, online_id])
 
         if (len(result) == 0):
             return None
@@ -125,9 +135,11 @@ class YtdlDatabase(ABC):
 
         return self.get_video(video_db_id)
 
-    def get_video_parent_collections(self, video_db_id):
+    def get_collection(self, collection_db_id):
         '''
-        Fetch collection information for the given video.
+        Fetch collection information for the given collection.
+
+        Returns `None` if no result is found.
         '''
 
         qstring = '''
@@ -137,7 +149,79 @@ class YtdlDatabase(ABC):
             WHERE
                 c.id = ?
         '''
+        result = self._execute(qstring, [collection_db_id])
+
+        if (len(result) == 0):
+            return None
+
+        return result[0]
+
+    def get_collection_by_extractor_id(self, extractor_name, online_id):
+        '''
+        Fetch collection information for the given collection.
+
+        Returns `None` if no result is found.
+        '''
+
+        qstring = '''
+            SELECT id FROM collection
+            WHERE
+                extractor_id = (SELECT id FROM extractor WHERE name = ?)
+                AND online_id = ?
+        '''
+        result = self._execute(qstring, [extractor_name, online_id])
+
+        if (len(result) == 0):
+            return None
+
+        collection_db_id = result[0]['id']
+
+        return self.get_collection(collection_db_id)
+
+    def get_collections_by_video(self, video_db_id):
+        '''
+        Fetch collection information for the given video.
+        '''
+
+        qstring = '''
+            SELECT * FROM video_collection_xref AS x
+                LEFT JOIN collection AS c ON c.id = x.collection_id
+                LEFT JOIN collection_type AS t ON c.type_id = t.id
+                LEFT JOIN update_sched AS u ON c.update_sched_id = u.id
+            WHERE
+                x.video_id = ?
+        '''
         return self._execute(qstring, [video_db_id])
+
+    def get_extractor(self, extractor_db_id):
+        '''
+        Fetch the extractor information for the given name.
+
+        Returns `None` if no result is found.
+        '''
+
+        qstring = '''SELECT * FROM extractor WHERE id = ?'''
+        result = self._execute(qstring, [extractor_db_id])
+
+        if (len(result) == 0):
+            return None
+
+        return result[0]
+
+    def get_extractor_by_name(self, name):
+        '''
+        Fetch the extractor information for the given name.
+
+        Returns `None` if no result is found.
+        '''
+
+        qstring = '''SELECT * FROM extractor WHERE name = ?'''
+        result = self._execute(qstring, [name])
+
+        if (len(result) == 0):
+            return None
+
+        return result[0]
 
     def get_download_history(self, max_count=15):
         '''
@@ -159,22 +243,58 @@ class YtdlDatabase(ABC):
     def insert_extractor(self, ytdl_info):
         '''
         Insert a new extractor if it does not exist already.
+
+        :return extractor_db_id for the inserted or already existing extractor
         '''
         pass
 
     @abstractmethod
-    def insert_collection(self, ytdl_info):
+    def insert_collection(self, ytdl_info, collection_type):
         '''
-        Insert a new collection if it does not exist already.
+        Insert a new collection for the given id/extractor/type if it does not exist already.
+
+        :return collection_db_id for the inserted or already existing collection
         '''
         pass
 
     @abstractmethod
-    def insert_video(self, ytdl_info):
+    def insert_video(self, ytdl_info, format_db_id = formats.DEFAULT):
         '''
-        Insert a new video.
+        Insert a new video. The video should not exist already.
 
-        This should always insert since there is no UNIQUE constraint on videos.
+        :return video_db_id for the inserted video
+        '''
+        pass
+
+    def insert_video_owner_xref(self, video_id, channel_collection_id):
+        '''
+        Associate a video with a given channel.
+
+        Every inserted video should be associated with a channel
+        whether it was downloaded as a standalone, playlist, or channel
+        download.
+        '''
+
+        self._begin()
+        qstring = '''
+            INSERT INTO video_owner_xref (
+                video_id,
+                collection_id
+            ) VALUES (?, ?)
+        '''
+
+        self._execute(qstring, [
+            video_id,
+            channel_collection_id
+        ])
+        self._commit()
+
+    @abstractmethod
+    def insert_video_collection_xref(self, video_id, collection_id, ordered_index=-1):
+        '''
+        Associate a video with a given collection.
+
+        If the association already exists, the ordering index will be updated.
         '''
         pass
 
@@ -192,6 +312,7 @@ class YtdlDatabase(ABC):
         Clear the download queue.
         '''
 
+        self._begin()
         qstring = '''DELETE FROM download_in_progress'''
         self._execute(qstring)
         self._commit()
@@ -264,8 +385,7 @@ class YtdlDatabase(ABC):
 
         qstring = '''
             SELECT * FROM all_download
-            WHERE video_id IN
-                (SELECT video_id FROM download_failed)
+            WHERE failed = 1
         '''
         return self._execute(qstring)
 
@@ -366,18 +486,33 @@ class YtdlSqliteDatabase(YtdlDatabase):
         self._begin()
         qstring = '''
             INSERT OR IGNORE INTO extractor (
-                name
-            ) VALUES (?);
+                name,
+                pretty_name
+            ) VALUES (?, ?);
         '''
         cursor = self.db.execute(qstring, [
-            ytdl_info['extractor']
+            ytdl_info['extractor'],
+            ytdl_info['extractor_key']
         ])
 
         log.debug(f'Extractor lastrowid: {cursor.lastrowid}')
 
         self._commit()
 
-    def insert_collection(self, ytdl_info):
+        extractor = self.get_extractor_by_name(ytdl_info['extractor'])
+
+        if (extractor is None):
+            log.error(f'Could not retrieve extractor after insertion!')
+            raise YtdlDatabaseError('Extractor insertion not found')
+
+        return extractor['id']
+
+    def insert_collection(self, ytdl_info, collection_type):
+        '''
+        Insert a new collection for the given id/extractor/type if it does not exist already.
+
+        :return collection_db_id for the inserted or already existing collection
+        '''
 
         self._begin()
         qstring = '''
@@ -385,21 +520,57 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 online_id,
                 online_title,
                 custom_title,
-                url
-            ) VALUES (?, ?, ?, ?);
+                url,
+                type_id,
+                extractor_id
+            ) VALUES (?, ?, ?, ?, ?,
+                (SELECT id FROM extractor WHERE name = ?)
+            );
         '''
-        cursor = self.db.execute(qstring, [
-            ytdl_info['uploader_id'],
-            ytdl_info['uploader'],
-            ytdl_info['uploader'],
-            ytdl_info['uploader_url']
-        ])
+
+        if (collection_type == YtdlDatabase.collection.CHANNEL):
+            online_id = ytdl_info['uploader_id']
+            cursor = self.db.execute(qstring, [
+                online_id,
+                ytdl_info['uploader'],
+                ytdl_info['uploader'],
+                ytdl_info['uploader_url'],
+                collection_type,
+                ytdl_info['extractor']
+            ])
+
+        elif (collection_type == YtdlDatabase.collection.PLAYLIST):
+            online_id = ytdl_info['id']
+            cursor = self.db.execute(qstring, [
+                online_id,
+                ytdl_info['title'],
+                ytdl_info['title'],
+                ytdl_info['webpage_url'],
+                collection_type,
+                ytdl_info['extractor']
+            ])
+
+        else:
+            raise YtdlDatabaseError(f'Invalid collection type: {collection_type}')
 
         log.debug(f'Collection lastrowid: {cursor.lastrowid}')
 
         self._commit()
 
-    def insert_video(self, ytdl_info, request_options):
+        collection = self.get_collection_by_extractor_id(ytdl_info['extractor'], online_id)
+
+        if (collection is None):
+            log.error(f'Could not retrieve collection after insertion!')
+            raise YtdlDatabaseError('Collection insertion not found')
+
+        return collection['id']
+
+    def insert_video(self, ytdl_info, format_db_id = YtdlDatabase.formats.DEFAULT):
+        '''
+        Insert a new video. The video should not exist already.
+
+        :return video_db_id for the inserted video
+        '''
 
         self._begin()
         qstring = '''
@@ -435,7 +606,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
             ytdl_info['extractor'],
             ytdl_info['webpage_url'],
             ytdl_info['title'],
-            request_options['format'],
+            format_db_id,
             ytdl_info['duration'],
             upload_date,
             filepath
@@ -443,33 +614,33 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         log.debug(f'Video lastrowid: {cursor.lastrowid}')
 
-        # Grab the id of the video that we just inserted
-        qstring = '''SELECT id FROM video AS v WHERE v.rowid = ?'''
-
-        cursor = self.db.execute(qstring, [cursor.lastrowid])
-        video_id = cursor.fetchone()['id']
-
-        log.debug(f'Video db id: {video_id}')
-
-        # Add it to the collection
-        qstring = '''
-            INSERT INTO video_collection_xref (
-                video_id,
-                collection_id
-            ) VALUES (
-                ?,
-                (SELECT id FROM collection AS c WHERE c.online_id = ?)
-            )
-        '''
-
-        self.db.execute(qstring, [
-            video_id,
-            ytdl_info['uploader_id']
-        ])
-
         self._commit()
 
-        return video_id
+        video = self.get_video_by_extractor_id(ytdl_info['extractor'], ytdl_info['id'])
+
+        if (video is None):
+            log.error(f'Could not retrieve video after insertion!')
+            raise YtdlDatabaseError('Video insertion not found')
+
+        return video['id']
+
+    def insert_video_collection_xref(self, video_id, collection_id, ordered_index=-1):
+
+        self._begin()
+        qstring = '''
+            INSERT OR REPLACE INTO video_collection_xref (
+                video_id,
+                collection_id,
+                ordering_index
+            ) VALUES (?, ?, ?)
+        '''
+
+        self._execute(qstring, [
+            video_id,
+            collection_id,
+            ordered_index
+        ])
+        self._commit()
 
     def __del__(self):
 

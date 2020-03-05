@@ -10,7 +10,7 @@
 
     <tr id="{{item['video_id']}}">
         <td><a href="video/{{item['video_id']}}">{{item['title']}}</a></td>
-        <td><a href="{{item['url']}}" target="blank">{{item['name']}}</a></td>
+        <td><a href="{{item['url']}}" target="blank">{{item['pretty_name']}}</a></td>
         <td>{{item['datetime']}}</td>
         <td>
             %if (item['in_progress']):

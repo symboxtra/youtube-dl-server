@@ -7,7 +7,7 @@ PRAGMA foreign_keys = ON;
   -- hls_use_mpegts INTEGER DEFAULT 0
 
 CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
+    id INTEGER PRIMARY KEY CHECK (id = 1),      -- allow only 1 row
     version TEXT NOT NULL,
     YDL_OUTPUT_TEMPLATE TEXT NOT NULL,
     YDL_ARCHIVE_FILE TEXT NOT NULL,
@@ -57,12 +57,6 @@ INSERT INTO format (category_id, label, value)
         (4, 'Worst Audio', 'worstaudio')
 ;
 
-CREATE TABLE IF NOT EXISTS collection_type (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
-);
-INSERT INTO collection_type (name) VALUES ('Standalone'), ('Channel'), ('Playlist');
-
 CREATE TABLE IF NOT EXISTS update_sched (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
@@ -78,7 +72,8 @@ INSERT INTO update_sched (name, frequency_d, description)
 
 CREATE TABLE IF NOT EXISTS extractor (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE,
+    pretty_name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS video (
@@ -92,9 +87,16 @@ CREATE TABLE IF NOT EXISTS video (
     upload_date TEXT,
     download_datetime TEXT DEFAULT (datetime('now')),
     filepath TEXT,
-    filepath_exists INTEGER CHECK (filepath_exists = 0 OR filepath_exists = 1),
-    filepath_last_checked TEXT
+    filepath_exists INTEGER DEFAULT 0 CHECK (filepath_exists = 0 OR filepath_exists = 1),
+    filepath_last_checked TEXT,
+    UNIQUE (online_id, extractor_id)
 );
+
+CREATE TABLE IF NOT EXISTS collection_type (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+INSERT INTO collection_type (name) VALUES ('Channel'), ('Playlist');
 
 CREATE TABLE IF NOT EXISTS collection_setting (
     id INTEGER PRIMARY KEY,
@@ -109,18 +111,31 @@ INSERT INTO collection_setting (title, description) VALUES ('Everything', 'Match
 
 CREATE TABLE IF NOT EXISTS collection (
     id INTEGER PRIMARY KEY,
-    type_id INTEGER DEFAULT 1 REFERENCES collection_type(id),
+    type_id INTEGER REFERENCES collection_type(id),
     setting INTEGER DEFAULT 1 REFERENCES collection_setting(id),
     update_sched_id INTEGER DEFAULT 1 REFERENCES update_sched(id),
-    online_id TEXT NOT NULL UNIQUE,
+    extractor_id INTEGER REFERENCES extractor(id),
+    online_id TEXT NOT NULL,
     online_title TEXT NOT NULL,
     custom_title TEXT,
     url TEXT,
     first_download_datetime TEXT DEFAULT (datetime('now')),
     last_download_datetime TEXT DEFAULT (datetime('now')),
-    last_update_datetime TEXT DEFAULT (datetime('now'))
+    last_update_datetime TEXT DEFAULT (datetime('now')),
+    UNIQUE (online_id, extractor_id)
 );
 
+-- Every video should belong to a channel
+-- Even if downloaded as standalone, the channel/owner
+-- collection should be recorded here
+CREATE TABLE IF NOT EXISTS video_owner_xref (
+    video_id INTEGER REFERENCES video(id),
+    collection_id INTEGER REFERENCES collection(id),
+    PRIMARY KEY (video_id, collection_id)
+);
+
+-- Every non-standalone video should additionaly be
+-- associated with a collection here
 CREATE TABLE IF NOT EXISTS video_collection_xref (
     video_id INTEGER REFERENCES video(id),
     collection_id INTEGER REFERENCES collection(id),
@@ -148,7 +163,7 @@ CREATE VIEW all_download AS
     SELECT
         v.id AS video_id,
         download_datetime AS datetime,
-        e.name AS extractor,
+        e.pretty_name AS extractor,
         url,
         title,
         (v.id IN (SELECT video_id FROM download_in_progress)) AS in_progress,

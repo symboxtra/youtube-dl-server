@@ -3,17 +3,20 @@ from __future__ import unicode_literals
 import json
 import logging
 import os
+import random
+import string
 import subprocess
 import sys
 from collections import ChainMap
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from pprint import pformat, pprint
 from threading import Thread
 
 import youtube_dl
 from bottle import Bottle, HTTPError, request, response, route, run, static_file, view
-from database import YtdlSqliteDatabase
+from database import YtdlDatabase, YtdlSqliteDatabase
 
 # Setup a logger for SQL queries
 logging.SQL = logging.DEBUG - 5
@@ -62,7 +65,7 @@ def bottle_video_by_id(video_db_id):
 @app.get('/video/<extractor>/<video_online_id>')
 @view('video')
 def bottle_video_by_extractor(extractor, video_online_id):
-    data = main_thread_db.get_video_by_extractor(extractor, video_online_id)
+    data = main_thread_db.get_video_by_extractor_id(extractor, video_online_id)
 
     if (data is None):
         raise HTTPError(404, f'Could not find video the requested video.')
@@ -166,35 +169,114 @@ def download(url, request_options):
         log.debug(pformat(data))
 
         if ('_type' in data):
-            log.info(f'Type is "{data["_type"]}"')
-            log.error ('Playlist and channel downloads are not yet implemented')
-            return
 
-        normalize_fields(data)
+            if (data['_type'] == 'playlist'):
+                download_playlist(child_thread_db, data, request_options)
+            else:
+                download_channel(child_thread_db, data, request_options)
 
-        # Insert the video into the database
-        child_thread_db.insert_extractor(data)
-        child_thread_db.insert_collection(data)
-        video_id = child_thread_db.insert_video(data, request_options)
+        else:
+            download_video(child_thread_db, data, request_options)
 
-        # Insert the video in the download queue
-        child_thread_db.mark_download_started(video_id)
+def download_channel(db, ytdl_info, request_options):
+    '''
+    Download all videos from the specified channel.
+    '''
+
+    ytdl_info = normalize_fields(ytdl_info)
+
+    db.insert_extractor(ytdl_info)
+    channel_db_id = db.insert_collection(ytdl_info, YtdlDatabase.collection.CHANNEL)
+
+    total_vids = len(ytdl_info['entries'])
+    video_ids = []
+    for i, video_info in enumerate(ytdl_info['entries']):
+
+        log.info(f'Processing channel entry {i + 1} of {total_vids}: {ytdl_pretty_name(ytdl_info)}')
+
+        video_db_id = download_video(db, video_info, request_options)
+        video_ids.append(video_db_id)
+
+        # TODO: Update xref to take a list so that we can do this all at once
+        db.insert_video_collection_xref(video_db_id, channel_db_id)
+
+    return channel_db_id
+
+def download_playlist(db, ytdl_info, request_options):
+    '''
+    Download all vidoes from the specified playlist.
+    '''
+
+    ytdl_info = normalize_fields(ytdl_info)
+
+    db.insert_extractor(ytdl_info)
+    playlist_db_id = db.insert_collection(ytdl_info, YtdlDatabase.collection.PLAYLIST)
+
+    total_vids = len(ytdl_info['entries'])
+    video_ids = []
+    for i, video_info in enumerate(ytdl_info['entries']):
+
+        log.info(f'Processing playlist entry {i + 1} of {total_vids}: {ytdl_pretty_name(ytdl_info)}')
+
+        video_db_id = download_video(db, video_info, request_options)
+        video_ids.append(video_db_id)
+
+        # TODO: Update xref to take a list so that we can do this all at once
+        db.insert_video_collection_xref(video_db_id, playlist_db_id, ordered_index=i + 1)
+
+    return playlist_db_id
+
+def download_video(db, ytdl_info, request_options):
+    '''
+    Download the specified video.
+    '''
+
+    ytdl_info = normalize_fields(ytdl_info)
+
+    # Check if the video already exists
+    video_data = db.get_video_by_extractor_id(ytdl_info['extractor'], ytdl_info['id'])
+
+    needs_download = True
+    if (video_data):
+        # TODO: Actively check disk to see if the path still exists
+        needs_download = (not video_data['filepath_exists'])
+        video_db_id = video_data['id']
+
+        log.info(f'Video "{ytdl_info["title"]}" already exists in the database. File missing on disk?: {needs_download}')
+
+    else:
+        # Insert the video and its required counterparts
+        # Automatically create the channel collection and
+        # add the video to it
+        db.insert_extractor(ytdl_info)
+        channel_db_id = db.insert_collection(ytdl_info, YtdlDatabase.collection.CHANNEL)
+        video_db_id = db.insert_video(ytdl_info, request_options['format'])
+
+        db.insert_video_owner_xref(video_db_id, channel_db_id)
+
+    if (needs_download):
+
+        db.mark_download_started(video_db_id)
 
         print()
-        video_pretty_name = f'"{data["title"]}" [{url}]'
-        log.info(f'Starting download for {video_pretty_name}...\n')
+        log.info(f'Starting download for {ytdl_pretty_name(ytdl_info)}...\n')
+
+        ydl_options = get_ydl_options(db, request_options)
 
         # Actually download the video(s)
-        return_code = ydl.download([url])
-        success = (return_code == 0)
+        with youtube_dl.YoutubeDL(ydl_options) as ydl:
+            return_code = ydl.download([ytdl_info['webpage_url']])
+            success = (return_code == 0)
 
         print()
         if (success):
-            log.info(f'Download completed for {video_pretty_name}.')
+            log.info(f'Download completed for {ytdl_pretty_name(ytdl_info)}.')
         else:
-            log.error(f'Download failed for {video_pretty_name}. Ytdl returned {return_code}')
+            log.error(f'Download failed for {ytdl_pretty_name(ytdl_info)}. Ytdl returned {return_code}')
 
-        child_thread_db.mark_download_ended(video_id, success=success)
+        db.mark_download_ended(video_db_id, success=success)
+
+    return video_db_id
 
 def normalize_fields(ytdl_info):
     '''
@@ -204,6 +286,7 @@ def normalize_fields(ytdl_info):
 
     field_mapping = {
         'extractor': None,
+        'extractor_key': 'extractor',
         'uploader': None,
         'uploader_id': 'uploader',
         'uploader_url': None,
@@ -211,24 +294,48 @@ def normalize_fields(ytdl_info):
         'title': None,
         'id': None,
         'duration': None,
-        'ext': 'unk',
+        'ext': None,
         'webpage_url': None
     }
+
+    essential = [
+        'extractor',
+        'extractor_key',
+        'uploader',
+        'uploader_id',
+        'title',
+        'id'
+    ]
 
     # Loop through once and loosely fill in what we can.
     # Does not attempt to do any chaining or anything with something
     # like A -> B -> C, unless they happen to already be in order.
-    for required_key, alternative in field_mapping.items():
-
-        if (not required_key in ytdl_info):
+    for required_key, alternate in field_mapping.items():
+        if (not required_key in ytdl_info or ytdl_info[required_key] is None):
             log.warning(f'Missing metadata key: {required_key}')
 
             ytdl_info[required_key] = None
 
-            if (alternative in ytdl_info):
-                ytdl_info[required_key] = ytdl_info[alternative]
+            if (alternate in ytdl_info):
+                ytdl_info[required_key] = ytdl_info[alternate]
 
-            log.debug(f'Set {required_key} to {ytdl_info[required_key]} using {alternative}')
+                log.debug(f'Set {required_key} to {ytdl_info[required_key]} using {alternate}')
+
+    # Make sure essential fields have a value no matter what
+    for key in essential:
+        if (ytdl_info[key] is None):
+            ytdl_info[key] = generate_id()
+            log.debug(f'Set {key} to {ytdl_info[key]}')
+
+    return ytdl_info
+
+def ytdl_pretty_name(ytdl_info):
+
+    return f'"{ytdl_info["title"]}" [{ytdl_info["webpage_url"]}]'
+
+def generate_id():
+    return 'ytdl_' + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '_' + \
+        ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k=10))
 
 if (__name__ == '__main__'):
 
