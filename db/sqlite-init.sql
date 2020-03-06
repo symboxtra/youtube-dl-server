@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS video (
     format_id INTEGER REFERENCES format(id),
     duration_s INTEGER,
     upload_date TEXT,
-    download_datetime TEXT DEFAULT (datetime('now')),
+    download_datetime TEXT DEFAULT (datetime('now', 'localtime')),
     filepath TEXT,
     filepath_exists INTEGER DEFAULT 0 CHECK (filepath_exists = 0 OR filepath_exists = 1),
     filepath_last_checked TEXT,
@@ -206,9 +206,9 @@ CREATE TABLE IF NOT EXISTS collection (
     online_title TEXT NOT NULL,
     custom_title TEXT,
     url TEXT,
-    first_download_datetime TEXT DEFAULT (datetime('now')),
-    last_download_datetime TEXT DEFAULT (datetime('now')),
-    last_update_datetime TEXT DEFAULT (datetime('now')),
+    first_download_datetime TEXT DEFAULT (datetime('now', 'localtime')),
+    last_download_datetime TEXT DEFAULT (datetime('now', 'localtime')),
+    last_update_datetime TEXT DEFAULT (datetime('now', 'localtime')),
     UNIQUE (online_id, extractor_id)
 );
 
@@ -232,13 +232,13 @@ CREATE TABLE IF NOT EXISTS video_collection_xref (
 
 CREATE TABLE IF NOT EXISTS download_in_progress (
     video_id INTEGER REFERENCES video(id),
-    start_datetime TEXT DEFAULT (datetime('now')),
+    start_datetime TEXT DEFAULT (datetime('now', 'localtime')),
     PRIMARY KEY (video_id)
 );
 
 CREATE TABLE IF NOT EXISTS download_failed (
     video_id INTEGER REFERENCES video(id),
-    last_fail_datetime TEXT DEFAULT (datetime('now')),
+    last_fail_datetime TEXT DEFAULT (datetime('now', 'localtime')),
     PRIMARY KEY (video_id)
 );
 
