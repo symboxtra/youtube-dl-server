@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS setting (
 
 CREATE TABLE IF NOT EXISTS format_category (
     id INTEGER PRIMARY KEY,
-    category TEXT NOT NULL UNIQUE
+    category TEXT NOT NULL
 );
 INSERT INTO format_category (id, category)
     VALUES
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS format (
     id INTEGER PRIMARY KEY,
     category_id INTEGER REFERENCES format_category(id),
     label TEXT NOT NULL,
-    value TEXT NOT NULL UNIQUE
+    value TEXT NOT NULL
 );
 INSERT INTO format (category_id, label, value)
     VALUES
@@ -143,9 +143,10 @@ INSERT INTO profile_setting VALUES (
 
 CREATE TABLE IF NOT EXISTS update_sched (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     frequency_d INTEGER NOT NULL,
-    description TEXT
+    description TEXT,
+    UNIQUE (name)
 );
 INSERT INTO update_sched (name, frequency_d, description)
     VALUES
@@ -156,8 +157,9 @@ INSERT INTO update_sched (name, frequency_d, description)
 
 CREATE TABLE IF NOT EXISTS extractor (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    pretty_name TEXT NOT NULL
+    name TEXT NOT NULL,
+    alt_name TEXT NOT NULL,
+    UNIQUE (name)
 );
 
 CREATE TABLE IF NOT EXISTS video (
@@ -178,7 +180,8 @@ CREATE TABLE IF NOT EXISTS video (
 
 CREATE TABLE IF NOT EXISTS collection_type (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL,
+    UNIQUE (name)
 );
 INSERT INTO collection_type (name) VALUES ('Channel'), ('Playlist');
 
@@ -247,7 +250,7 @@ CREATE VIEW all_download AS
     SELECT
         v.id AS video_id,
         download_datetime AS datetime,
-        e.pretty_name AS extractor,
+        e.name AS extractor,
         url,
         title,
         (v.id IN (SELECT video_id FROM download_in_progress)) AS in_progress,

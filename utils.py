@@ -89,8 +89,8 @@ def normalize_fields(ytdl_info):
     '''
 
     field_mapping = {
-        'extractor': None,
-        'extractor_key': 'extractor',
+        'extractor_key': None,
+        'extractor': 'extractor_key',
         'uploader': None,
         'uploader_id': 'uploader',
         'uploader_url': None,

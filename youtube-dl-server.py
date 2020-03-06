@@ -187,7 +187,7 @@ def download_video(db, ytdl_info, request_options):
     ytdl_info = normalize_fields(ytdl_info)
 
     # Check if the video already exists
-    video_data = db.get_video_by_extractor_id(ytdl_info['extractor'], ytdl_info['id'])
+    video_data = db.get_video_by_extractor_id(ytdl_info['extractor_key'], ytdl_info['id'])
 
     needs_download = True
     if (video_data):

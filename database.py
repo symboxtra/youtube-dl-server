@@ -522,19 +522,19 @@ class YtdlSqliteDatabase(YtdlDatabase):
         qstring = '''
             INSERT OR IGNORE INTO extractor (
                 name,
-                pretty_name
+                alt_name
             ) VALUES (?, ?);
         '''
         cursor = self.db.execute(qstring, [
-            ytdl_info['extractor'],
-            ytdl_info['extractor_key']
+            ytdl_info['extractor_key'],
+            ytdl_info['extractor']
         ])
 
         log.debug(f'Extractor lastrowid: {cursor.lastrowid}')
 
         self._commit()
 
-        extractor = self.get_extractor_by_name(ytdl_info['extractor'])
+        extractor = self.get_extractor_by_name(ytdl_info['extractor_key'])
 
         if (extractor is None):
             log.error(f'Could not retrieve extractor after insertion!')
@@ -571,7 +571,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 ytdl_info['uploader'],
                 ytdl_info['uploader_url'],
                 collection_type,
-                ytdl_info['extractor']
+                ytdl_info['extractor_key']
             ])
 
         elif (collection_type == YtdlDatabase.collection.PLAYLIST):
@@ -582,7 +582,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 ytdl_info['title'],
                 ytdl_info['webpage_url'],
                 collection_type,
-                ytdl_info['extractor']
+                ytdl_info['extractor_key']
             ])
 
         else:
@@ -592,7 +592,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         self._commit()
 
-        collection = self.get_collection_by_extractor_id(ytdl_info['extractor'], online_id)
+        collection = self.get_collection_by_extractor_id(ytdl_info['extractor_key'], online_id)
 
         if (collection is None):
             log.error(f'Could not retrieve collection after insertion!')
@@ -638,7 +638,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         cursor = self.db.execute(qstring, [
             ytdl_info['id'],
-            ytdl_info['extractor'],
+            ytdl_info['extractor_key'],
             ytdl_info['webpage_url'],
             ytdl_info['title'],
             format_db_id,
@@ -651,7 +651,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         self._commit()
 
-        video = self.get_video_by_extractor_id(ytdl_info['extractor'], ytdl_info['id'])
+        video = self.get_video_by_extractor_id(ytdl_info['extractor_key'], ytdl_info['id'])
 
         if (video is None):
             log.error(f'Could not retrieve video after insertion!')
