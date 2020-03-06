@@ -1,11 +1,11 @@
-import logging
 import os
 import sqlite3
 from abc import ABC, abstractmethod
+from pprint import pformat
 
 import version
-
-log = logging.getLogger('youtube-dl-server-subscribed')
+from log import log
+from utils import get_env_override, merge_env_db_settings
 
 class YtdlDatabaseError(Exception):
     pass
@@ -21,6 +21,11 @@ class YtdlDatabase(ABC):
     '''
 
     # Enums based on order of insertion for SQlite
+    class profile:
+        BASIC = 1
+        ARCHIVAL = 2
+        PLEX = 3
+
     class formats:
         DEFAULT = 1
 
@@ -63,15 +68,26 @@ class YtdlDatabase(ABC):
         '''
         pass
 
+    def get_raw_settings(self):
+        '''
+        Fetch the settings from the database without merging
+        them with overrides from the environment.
+        '''
+
+        qstring = '''
+            SELECT * FROM setting AS s
+                LEFT JOIN profile_setting AS ps ON ps.id = s.YDL_SERVER_PROFILE
+        '''
+
+        return self._execute(qstring)[0]
+
     def get_settings(self):
         '''
-        Fetch the stored settings.
-
-        These represent the settings stored in the database.
-        They may be overriden by environment variables elsewhere in the program.
+        Fetch the stored settings and merge them with overrides
+        from the environment.
         '''
 
-        return self._execute('''SELECT * FROM settings''')[0]
+        return merge_env_db_settings(self.get_raw_settings())
 
     def get_format(self, format_id):
         '''
@@ -411,6 +427,16 @@ class YtdlSqliteDatabase(YtdlDatabase):
         if (is_new_db):
             self.init_new_database()
 
+        # Make sure the settings and any overrides get logged initially
+        log.debug(pformat(merge_env_db_settings(self.get_raw_settings(), quiet=False)))
+
+        # Make sure version stays up to date
+        # TODO: Migrations first
+        self._begin()
+        qstring = '''UPDATE setting SET version = ?'''
+        self._execute(qstring, [version.__version__])
+        self._commit()
+
     def _begin(self):
         # Do nothing since transactions are automatic on write with sqlite3
         pass
@@ -423,7 +449,14 @@ class YtdlSqliteDatabase(YtdlDatabase):
         self.db.commit()
 
     def result_to_simple_type(self, result):
-        return [dict(row) for row in result]
+
+        # Detect single-row results
+        if (len(result) > 0 and type(result[0]) != sqlite3.Row):
+            return dict(result)
+
+        # Multi-row results
+        else:
+            return [dict(row) for row in result]
 
     def init_new_database(self):
         '''
@@ -439,22 +472,24 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         self._begin()
         qstring = '''
-            INSERT INTO settings (
+            INSERT INTO setting (
                 version,
+                YDL_SERVER_PROFILE,
                 YDL_SERVER_HOST,
-                YDL_SERVER_PORT,
-                YDL_OUTPUT_TEMPLATE,
-                YDL_ARCHIVE_FILE
-            ) VALUES (?, ?, ?, ?, ?);
+                YDL_SERVER_PORT
+            ) VALUES (?, ?, ?, ?);
         '''
+
+        profile = get_env_override('YDL_SERVER_PROFILE', default='1')
+        address = get_env_override('YDL_SERVER_HOST', default='0.0.0.0')
+        port = get_env_override('YDL_SERVER_PORT', default=8080)
 
         # Set the default settings for a new database
         self.db.execute(qstring, [
             version.__version__,
-            '0.0.0.0',
-            8080,
-            './downloaded/%(extractor)s/%(uploader)s/[%(upload_date)s] %(title)s [%(id)s].%(ext)s',
-            './downloaded/archive.log'
+            profile,
+            address,
+            port,
         ])
         self._commit()
 

@@ -6,11 +6,10 @@ PRAGMA foreign_keys = ON;
   -- hls_prefer_ffmpeg INTEGER DEFAULT 0,
   -- hls_use_mpegts INTEGER DEFAULT 0
 
-CREATE TABLE IF NOT EXISTS settings (
+CREATE TABLE IF NOT EXISTS setting (
     id INTEGER PRIMARY KEY CHECK (id = 1),      -- allow only 1 row
     version TEXT NOT NULL,
-    YDL_OUTPUT_TEMPLATE TEXT NOT NULL,
-    YDL_ARCHIVE_FILE TEXT NOT NULL,
+    YDL_SERVER_PROFILE INTEGER REFERENCES profile_setting(id) DEFAULT 1,
     YDL_SERVER_HOST TEXT NOT NULL,
     YDL_SERVER_PORT INTEGER NOT NULL
 );
@@ -56,6 +55,91 @@ INSERT INTO format (category_id, label, value)
         (4, 'Worst Video', 'worstvideo'),
         (4, 'Worst Audio', 'worstaudio')
 ;
+
+CREATE TABLE IF NOT EXISTS profile_setting (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    default_format INTEGER REFERENCES format(id),
+    YDL_OUTPUT_TEMPLATE TEXT NOT NULL,
+    YDL_WRITE_SUB INTEGER CHECK (YDL_WRITE_SUB = 0 OR YDL_WRITE_SUB = 1),
+    YDL_ALL_SUBS INTEGER CHECK (YDL_ALL_SUBS = 0 OR YDL_ALL_SUBS = 1),
+    YDL_IGNORE_ERRORS INTEGER CHECK (YDL_IGNORE_ERRORS = 0 OR YDL_IGNORE_ERRORS = 1),
+    YDL_CONTINUE_DL INTEGER CHECK (YDL_CONTINUE_DL = 0 OR YDL_CONTINUE_DL = 1),
+    YDL_NO_OVERWRITES INTEGER CHECK (YDL_NO_OVERWRITES = 0 OR YDL_NO_OVERWRITES = 1),
+    YDL_ADD_METADATA INTEGER CHECK (YDL_ADD_METADATA = 0 OR YDL_ADD_METADATA = 1),
+    YDL_WRITE_DESCRIPTION INTEGER CHECK (YDL_WRITE_DESCRIPTION = 0 OR YDL_WRITE_DESCRIPTION = 1),
+    YDL_WRITE_INFO_JSON INTEGER CHECK (YDL_WRITE_INFO_JSON = 0 OR YDL_WRITE_INFO_JSON = 1),
+    YDL_WRITE_ANNOTATIONS INTEGER CHECK (YDL_WRITE_ANNOTATIONS = 0 OR YDL_WRITE_ANNOTATIONS = 1),
+    YDL_WRITE_THUMBNAIL INTEGER CHECK (YDL_WRITE_THUMBNAIL = 0 OR YDL_WRITE_THUMBNAIL = 1),
+    YDL_EMBED_THUMBNAIL INTEGER CHECK (YDL_EMBED_THUMBNAIL = 0 OR YDL_EMBED_THUMBNAIL = 1),
+    YDL_SUB_FORMAT TEXT NOT NULL,
+    YDL_EMBED_SUBS INTEGER CHECK (YDL_EMBED_SUBS = 0 OR YDL_EMBED_SUBS = 1),
+    YDL_MERGE_OUTPUT_FORMAT TEXT NOT NULL,
+    YDL_RECODE_VIDEO TEXT NOT NULL
+);
+INSERT INTO profile_setting VALUES (
+    1,
+    'Basic',
+    2,
+    './downloaded/basic/%(uploader)s/[%(upload_date)s] %(title)s.%(ext)s',
+    1,      -- WRITE_SUB
+    1,      -- ALL_SUBS
+    1,      -- IGNORE_ERRORS
+    0,      -- CONTINUE_DL
+    1,      -- NO_OVERWRITES
+    1,      -- ADD_METADATA
+    0,      -- WRITE_DESCRIPTION
+    0,      -- WRITE_INFO_JSON
+    0,      -- WRITE_ANNOTATIONS
+    0,      -- WRITE_THUMBNAIL
+    1,      -- EMBED_THUMBNAIL
+    'srt',  -- SUB_FORMAT
+    1,      -- EMBED_SUBS
+    'mkv',  -- MERGE_OUTPUT_FORMAT
+    'mkv'   -- RECODE_VIDEO
+);
+INSERT INTO profile_setting VALUES (
+    2,
+    'Archival',
+    1,
+    './downloaded/archival/%(extractor_key)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
+    1,      -- WRITE_SUB
+    1,      -- ALL_SUBS
+    1,      -- IGNORE_ERRORS
+    0,      -- CONTINUE_DL
+    1,      -- NO_OVERWRITES
+    1,      -- ADD_METADATA
+    1,      -- WRITE_DESCRIPTION
+    1,      -- WRITE_INFO_JSON
+    1,      -- WRITE_ANNOTATIONS
+    1,      -- WRITE_THUMBNAIL
+    1,      -- EMBED_THUMBNAIL
+    'srt',  -- SUB_FORMAT
+    1,      -- EMBED_SUBS
+    'mkv',  -- MERGE_OUTPUT_FORMAT
+    'mkv'   -- RECODE_VIDEO
+);
+INSERT INTO profile_setting VALUES (
+    3,
+    'Plex',
+    2,
+    './downloaded/plex/%(uploader)s/%(title)s.%(ext)s',
+    1,      -- WRITE_SUB
+    1,      -- ALL_SUBS
+    1,      -- IGNORE_ERRORS
+    0,      -- CONTINUE_DL
+    1,      -- NO_OVERWRITES
+    1,      -- ADD_METADATA
+    1,      -- WRITE_DESCRIPTION
+    1,      -- WRITE_INFO_JSON
+    1,      -- WRITE_ANNOTATIONS
+    1,      -- WRITE_THUMBNAIL
+    1,      -- EMBED_THUMBNAIL
+    'srt',  -- SUB_FORMAT
+    1,      -- EMBED_SUBS
+    'mp4',  -- MERGE_OUTPUT_FORMAT
+    'mp4'   -- RECODE_VIDEO
+);
 
 CREATE TABLE IF NOT EXISTS update_sched (
     id INTEGER PRIMARY KEY,

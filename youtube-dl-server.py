@@ -3,37 +3,18 @@ from __future__ import unicode_literals
 import json
 import logging
 import os
-import random
-import string
 import subprocess
 import sys
-from collections import ChainMap
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
-from pathlib import Path
 from pprint import pformat, pprint
-from threading import Thread
 
 import youtube_dl
 from bottle import Bottle, HTTPError, request, response, route, run, static_file, view
 from database import YtdlDatabase, YtdlSqliteDatabase
+from log import log
+from utils import get_ydl_options, normalize_fields, ytdl_pretty_name
 
-# Setup a logger for SQL queries
-logging.SQL = logging.DEBUG - 5
-logging.addLevelName(logging.SQL, 'SQL')
-def log_sql(self, msg, *args, **kwargs):
-    if (self.isEnabledFor(logging.SQL)):
-        self._log(logging.SQL, msg, args, **kwargs)
-logging.Logger.sql = log_sql
-
-log = logging.getLogger('youtube-dl-server-subscribed')
-log.setLevel(logging.INFO)
-
-handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter('%(levelname)s: %(message)s')
-handler.setFormatter(formatter)
-
-log.addHandler(handler)
+log.setLevel(logging.DEBUG)
 
 main_thread_db = YtdlSqliteDatabase()
 print()
@@ -56,7 +37,7 @@ def bottle_video_by_id(video_db_id):
     data = main_thread_db.get_video(video_db_id)
 
     if (data is None):
-        raise HTTPError(404, f'Could not find video the requested video.')
+        raise HTTPError(404, f'Could not find the requested video.')
 
     return {
         'item': data
@@ -68,7 +49,7 @@ def bottle_video_by_extractor(extractor, video_online_id):
     data = main_thread_db.get_video_by_extractor_id(extractor, video_online_id)
 
     if (data is None):
-        raise HTTPError(404, f'Could not find video the requested video.')
+        raise HTTPError(404, f'Could not find the requested video.')
 
     return {
         'item': data
@@ -124,34 +105,6 @@ def bottle_update():
     return {
         'output': output.decode('UTF-8'),
         'error':  error.decode('UTF-8')
-    }
-
-
-def get_ydl_options(db, request_options):
-    ydl_vars = ChainMap(os.environ, db.get_settings())
-
-    # List of all options can be found here:
-    # https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/options.py
-    return {
-        'format': db.get_format(request_options['format']),
-        'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
-        # 'download_archive': ydl_vars['YDL_ARCHIVE_FILE'],
-        'writesubtitles': True,     # --write-sub
-        'allsubtitles': True,       # --all-subs
-        'ignoreerrors': True,       # --ignore-errors
-        'continue_dl': False,       # --no-continue
-        'nooverwrites': True,       # --no-overwrites
-        'addmetadata': True,        # --add-metadata
-        'writedescription': True,   # --write-description
-        'writeinfojson': True,      # --write-info-json
-        'writeannotations': True,   # --write-annotations
-        'writethumbnail': True,     # --write-thumbnail
-        'embedthumbnail': True,     # --embed-thumbnail
-        'subtitlesformat': 'srt',   # --sub-format 'srt'
-        'embedsubtitles': True,     # --embed-subs
-        'merge_output_format': 'mkv',  # --merge-output-format 'mkv'
-        'recodevideo': 'mkv',       # --recode-video 'mkv'
-        # 'logger': log
     }
 
 def download(url, request_options):
@@ -278,65 +231,6 @@ def download_video(db, ytdl_info, request_options):
 
     return video_db_id
 
-def normalize_fields(ytdl_info):
-    '''
-    Make sure any fields that we rely on exist.
-    If they don't, fake them using other values or None.
-    '''
-
-    field_mapping = {
-        'extractor': None,
-        'extractor_key': 'extractor',
-        'uploader': None,
-        'uploader_id': 'uploader',
-        'uploader_url': None,
-        'upload_date': None,
-        'title': None,
-        'id': None,
-        'duration': None,
-        'ext': None,
-        'webpage_url': None
-    }
-
-    essential = [
-        'extractor',
-        'extractor_key',
-        'uploader',
-        'uploader_id',
-        'title',
-        'id'
-    ]
-
-    # Loop through once and loosely fill in what we can.
-    # Does not attempt to do any chaining or anything with something
-    # like A -> B -> C, unless they happen to already be in order.
-    for required_key, alternate in field_mapping.items():
-        if (not required_key in ytdl_info or ytdl_info[required_key] is None):
-            log.warning(f'Missing metadata key: {required_key}')
-
-            ytdl_info[required_key] = None
-
-            if (alternate in ytdl_info):
-                ytdl_info[required_key] = ytdl_info[alternate]
-
-                log.debug(f'Set {required_key} to {ytdl_info[required_key]} using {alternate}')
-
-    # Make sure essential fields have a value no matter what
-    for key in essential:
-        if (ytdl_info[key] is None):
-            ytdl_info[key] = generate_id()
-            log.debug(f'Set {key} to {ytdl_info[key]}')
-
-    return ytdl_info
-
-def ytdl_pretty_name(ytdl_info):
-
-    return f'"{ytdl_info["title"]}" [{ytdl_info["webpage_url"]}]'
-
-def generate_id():
-    return 'ytdl_' + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '_' + \
-        ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k=10))
-
 if (__name__ == '__main__'):
 
     # download_executor = ThreadPoolExecutor(max_workers=4)
@@ -349,7 +243,7 @@ if (__name__ == '__main__'):
     if (len(update_result['error']) > 0):
         log.warning(update_result['error'])
 
-    app_vars = ChainMap(os.environ, main_thread_db.get_settings())
+    app_vars = main_thread_db.get_settings()
 
     app.run(host=app_vars['YDL_SERVER_HOST'],
             port=app_vars['YDL_SERVER_PORT'], catchall=True, debug=True)
