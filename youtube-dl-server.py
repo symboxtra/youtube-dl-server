@@ -80,8 +80,11 @@ def bottle_add_to_queue():
     if (not url):
         raise HTTPError(400, "Missing 'url' query parameter")
 
-    download(url, request_options)
+    error = download(url, request_options)
     # download_executor.submit(download, url, request_options)
+
+    if (len(error) > 0):
+        raise HTTPError(500, error)
 
     return bottle_get_queue()
 
@@ -123,37 +126,22 @@ def download(url, request_options):
 
         if ('_type' in data):
 
-            if (data['_type'] == 'playlist'):
+            data_type = data['_type']
+
+            # Source code shows video, playlist, multi_video, url, and url_transparent
+            if (data_type == 'video'):
+                download_video(child_thread_db, data, request_options)
+            elif (data_type == 'playlist' or data_type == 'multi_video'):
                 download_playlist(child_thread_db, data, request_options)
             else:
-                download_channel(child_thread_db, data, request_options)
+                msg = f'Unhandled ytdl response type: {data_type}'
+                log.error(msg)
+                return msg
 
         else:
             download_video(child_thread_db, data, request_options)
 
-def download_channel(db, ytdl_info, request_options):
-    '''
-    Download all videos from the specified channel.
-    '''
-
-    ytdl_info = normalize_fields(ytdl_info)
-
-    db.insert_extractor(ytdl_info)
-    channel_db_id = db.insert_collection(ytdl_info, YtdlDatabase.collection.CHANNEL)
-
-    total_vids = len(ytdl_info['entries'])
-    video_ids = []
-    for i, video_info in enumerate(ytdl_info['entries']):
-
-        log.info(f'Processing channel entry {i + 1} of {total_vids}: {ytdl_pretty_name(ytdl_info)}')
-
-        video_db_id = download_video(db, video_info, request_options)
-        video_ids.append(video_db_id)
-
-        # TODO: Update xref to take a list so that we can do this all at once
-        db.insert_video_collection_xref(video_db_id, channel_db_id)
-
-    return channel_db_id
+    return ''
 
 def download_playlist(db, ytdl_info, request_options):
     '''
@@ -218,7 +206,10 @@ def download_video(db, ytdl_info, request_options):
 
         # Actually download the video(s)
         with youtube_dl.YoutubeDL(ydl_options) as ydl:
-            return_code = ydl.download([ytdl_info['webpage_url']])
+            ydl.process_video_result(ytdl_info, download=True)
+
+            # TODO: Check disk for the output file so we don't have to rely on this
+            return_code = ydl._download_retcode
             success = (return_code == 0)
 
         print()

@@ -28,12 +28,12 @@ def is_env_override(var_name):
 
 def generate_id():
     '''
-    Generate a random ID in the form:
-    `ytdl_YYYY-MM-DD_HH-MM-SS_<random_alpha_num_chars>`
+    Generate an ID in the form:
+    `ytdl_YYYY-MM-DD_HH-MM-SS`
     '''
 
-    return 'ytdl_' + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '_' + \
-        ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k=10))
+    return 'ytdl_' + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") # + '_' + \
+        #''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k=10))
 
 def get_ydl_options(db, request_options):
     '''
