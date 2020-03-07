@@ -26,6 +26,7 @@ app = Bottle()
 def bottle_index():
     return {
         'format_options': main_thread_db.get_format_options(),
+        'default_format': main_thread_db.get_settings()['default_format'],
         'failed': main_thread_db.get_download_failures(),
         'queue': main_thread_db.get_download_queue(),
         'history': main_thread_db.get_download_history(),
@@ -128,10 +129,10 @@ def download(url, request_options):
 
             data_type = data['_type']
 
-            # Source code shows video, playlist, multi_video, url, and url_transparent
+            # Source code shows video, playlist, compat_list, multi_video, url, and url_transparent
             if (data_type == 'video'):
                 download_video(child_thread_db, data, request_options)
-            elif (data_type == 'playlist' or data_type == 'multi_video'):
+            elif (data_type == 'playlist' or data_type == 'multi_video' or data_type == 'compat_list'):
                 download_playlist(child_thread_db, data, request_options)
             else:
                 msg = f'Unhandled ytdl response type: {data_type}'
@@ -155,15 +156,17 @@ def download_playlist(db, ytdl_info, request_options):
 
     total_vids = len(ytdl_info['entries'])
     video_ids = []
+    video_indices = []
     for i, video_info in enumerate(ytdl_info['entries']):
 
         log.info(f'Processing playlist entry {i + 1} of {total_vids}: {ytdl_pretty_name(ytdl_info)}')
 
         video_db_id = download_video(db, video_info, request_options)
-        video_ids.append(video_db_id)
 
-        # TODO: Update xref to take a list so that we can do this all at once
-        db.insert_video_collection_xref(video_db_id, playlist_db_id, ordered_index=i + 1)
+        video_ids.append(video_db_id)
+        video_indices.append(ytdl_info.get('playlist_index', i + 1))
+
+    db.insert_video_collection_xref(video_ids, playlist_db_id, ordered_index=video_indices)
 
     return playlist_db_id
 

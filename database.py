@@ -1,3 +1,4 @@
+import itertools
 import os
 import sqlite3
 from abc import ABC, abstractmethod
@@ -81,13 +82,24 @@ class YtdlDatabase(ABC):
 
         return self._execute(qstring)[0]
 
-    def get_settings(self):
+    def get_settings(self, quiet=True):
         '''
         Fetch the stored settings and merge them with overrides
         from the environment.
         '''
 
-        return merge_env_db_settings(self.get_raw_settings())
+        base_settings = self._execute('''SELECT * FROM setting''')[0]
+
+        # Make sure the env override for active profile is taken into account
+        active_profile = get_env_override('YDL_SERVER_PROFILE', default=base_settings['YDL_SERVER_PROFILE'])
+
+        qstring = '''
+            SELECT * FROM setting AS s
+                LEFT JOIN profile_setting AS ps ON ps.id = ?
+        '''
+        joined_settings = self._execute(qstring, [active_profile])[0]
+
+        return merge_env_db_settings(joined_settings, quiet=quiet)
 
     def get_format(self, format_id):
         '''
@@ -405,6 +417,48 @@ class YtdlDatabase(ABC):
         '''
         return self._execute(qstring)
 
+    def _research_insert_uploader(self, ytdl_info):
+        '''
+        Record alternate options for `uploader` and `uploader_id`
+        for later research.
+        '''
+
+        self._begin()
+        qstring = '''
+            INSERT INTO _uploader_alternative (
+                extractor,
+                webpage_url,
+                uploader_id,
+                uploader,
+                uploader_url,
+                creator,
+                channel_id,
+                channel,
+                channel_url,
+                playlist_uploader_id,
+                playlist_uploader,
+                artist,
+                album_artist
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        '''
+
+        self._execute(qstring, [
+            ytdl_info.get('extractor_key'),
+            ytdl_info.get('webpage_url'),
+            ytdl_info.get('uploader_id'),
+            ytdl_info.get('uploader'),
+            ytdl_info.get('uploader_url'),
+            ytdl_info.get('creator'),
+            ytdl_info.get('channel_id'),
+            ytdl_info.get('channel'),
+            ytdl_info.get('channel_url'),
+            ytdl_info.get('playlist_uploader_id'),
+            ytdl_info.get('playlist_uploader'),
+            ytdl_info.get('artist'),
+            ytdl_info.get('album_artist')
+        ])
+        self._commit()
+
 class YtdlSqliteDatabase(YtdlDatabase):
 
     def __init__(self, connection_params={}):
@@ -412,7 +466,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
         Open or create the sqlite database.
         '''
 
-        if ('path' not in connection_params):
+        if (not 'path' in connection_params):
             connection_params['path'] = 'db/youtube-dl-sub.db'
 
         log.info(f'Using SQLite database at: {connection_params["path"]}')
@@ -428,7 +482,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
             self.init_new_database()
 
         # Make sure the settings and any overrides get logged initially
-        log.debug(pformat(merge_env_db_settings(self.get_raw_settings(), quiet=False)))
+        log.debug(pformat(self.get_settings(quiet=False)))
 
         # Make sure version stays up to date
         # TODO: Migrations first
@@ -485,7 +539,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
         port = get_env_override('YDL_SERVER_PORT', default=8080)
 
         # Set the default settings for a new database
-        self.db.execute(qstring, [
+        self._execute(qstring, [
             version.__version__,
             profile,
             address,
@@ -525,12 +579,10 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 alt_name
             ) VALUES (?, ?);
         '''
-        cursor = self.db.execute(qstring, [
+        self._execute(qstring, [
             ytdl_info['extractor_key'],
             ytdl_info['extractor']
         ])
-
-        log.debug(f'Extractor lastrowid: {cursor.lastrowid}')
 
         self._commit()
 
@@ -565,7 +617,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         if (collection_type == YtdlDatabase.collection.CHANNEL):
             online_id = ytdl_info['uploader_id']
-            cursor = self.db.execute(qstring, [
+            self._execute(qstring, [
                 online_id,
                 ytdl_info['uploader'],
                 ytdl_info['uploader'],
@@ -576,7 +628,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         elif (collection_type == YtdlDatabase.collection.PLAYLIST):
             online_id = ytdl_info['id']
-            cursor = self.db.execute(qstring, [
+            self._execute(qstring, [
                 online_id,
                 ytdl_info['title'],
                 ytdl_info['title'],
@@ -587,8 +639,6 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         else:
             raise YtdlDatabaseError(f'Invalid collection type: {collection_type}')
-
-        log.debug(f'Collection lastrowid: {cursor.lastrowid}')
 
         self._commit()
 
@@ -636,7 +686,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         log.debug(f'Populated output template: {filepath}')
 
-        cursor = self.db.execute(qstring, [
+        self._execute(qstring, [
             ytdl_info['id'],
             ytdl_info['extractor_key'],
             ytdl_info['webpage_url'],
@@ -647,9 +697,9 @@ class YtdlSqliteDatabase(YtdlDatabase):
             filepath
         ])
 
-        log.debug(f'Video lastrowid: {cursor.lastrowid}')
-
         self._commit()
+
+        self._research_insert_uploader(ytdl_info)
 
         video = self.get_video_by_extractor_id(ytdl_info['extractor_key'], ytdl_info['id'])
 
@@ -670,11 +720,34 @@ class YtdlSqliteDatabase(YtdlDatabase):
             ) VALUES (?, ?, ?)
         '''
 
-        self._execute(qstring, [
-            video_id,
-            collection_id,
-            ordered_index
-        ])
+        if (type(video_id) == list and type(ordered_index) == list):
+
+            if (len(video_id) != len(ordered_index)):
+                raise YtdlDatabaseError('Video ID list and video index list lengths were not equal')
+
+            self.db.executemany(qstring, zip(
+                video_id,
+                itertools.repeat(collection_id),
+                ordered_index
+            ))
+
+        elif (type(video_id) == list):
+            self.db.executemany(qstring, zip(
+                video_id,
+                itertools.repeat(collection_id),
+                itertools.repeat(ordered_index),
+            ))
+
+        elif (type(ordered_index) == list):
+            raise YtdlDatabaseError('Indices cannot be a list when video ID is scalar')
+
+        else:
+            self._execute(qstring, [
+                video_id,
+                collection_id,
+                ordered_index
+            ])
+
         self._commit()
 
     def __del__(self):

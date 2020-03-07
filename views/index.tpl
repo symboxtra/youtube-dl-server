@@ -14,11 +14,15 @@
 			<div class="input">
 				<input class="input__url" name="url" type="url" placeholder="URL" aria-label="URL" aria-describedby="button-submit">
 
-				<select class="custom-select" name="format">
+				<select class="custom-select" name="format" selected="{{default_format}}">
 					%for category, formats in format_options.items():
 					<optgroup label="{{category}}">
 						%for format in formats:
-						<option value="{{format['id']}}" title="{{format['value']}}">{{format['label']}}</option>
+							%if (format['id'] == default_format):
+								<option value="{{format['id']}}" title="{{format['value']}}" selected>{{format['label']}}</option>
+							%else:
+								<option value="{{format['id']}}" title="{{format['value']}}">{{format['label']}}</option>
+							%end
 						%end
 					</optgroup>
 					%end

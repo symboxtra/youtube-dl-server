@@ -46,7 +46,27 @@ def get_ydl_options(db, request_options):
 
     ydl_vars = db.get_settings()
 
+    # TODO: Add:
+    # playliststart
+    # playlistend
+    # playlistitems
+    # matchtitle
+    # rejecttitle
+    # min_views
+    # max_views
+    # max_filesize
+    # min_filesize
+    # date?
+    # datebefore?
+    # dateafter?
+    # sleep_interval
+    # subtitleslangs
+    # writeautomaticsub?
+    # ratelimit
+    # progresshooks?
+
     # List of all options can be found here:
+    # https://github.com/ytdl-org/youtube-dl/blob/fca6dba8b80286ae6d3ca0a60c4799c220a52650/youtube_dl/YoutubeDL.py#L141
     # https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/options.py
     return {
         'format': db.get_format(request_options['format']),
@@ -66,6 +86,7 @@ def get_ydl_options(db, request_options):
         'embedsubtitles': bool(ydl_vars['YDL_WRITE_SUB']),          # --embed-subs
         'merge_output_format': ydl_vars['YDL_MERGE_OUTPUT_FORMAT'], # --merge-output-format 'mkv'
         'recodevideo': ydl_vars['YDL_RECODE_VIDEO'],                # --recode-video 'mkv'
+        'call_home': False,
         'logger': log
     }
 
@@ -86,13 +107,16 @@ def normalize_fields(ytdl_info):
     '''
     Make sure any fields that we rely on exist.
     If they don't, fake them using generated values or None.
+
+    Field information:
+    https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/extractor/common.py#L86
     '''
 
     field_mapping = {
         'extractor_key': None,
-        'extractor': 'extractor_key',
+        'extractor': None,
         'uploader': None,
-        'uploader_id': 'uploader',
+        'uploader_id': None,
         'uploader_url': None,
         'upload_date': None,
         'title': None,
@@ -107,8 +131,6 @@ def normalize_fields(ytdl_info):
     essential = [
         'extractor',
         'extractor_key',
-        'uploader',
-        'uploader_id',
         'title',
         'id'
     ]
@@ -132,6 +154,15 @@ def normalize_fields(ytdl_info):
         if (ytdl_info[key] is None):
             ytdl_info[key] = generate_id()
             log.debug(f'Set {key} to {ytdl_info[key]}')
+
+    # Match the ytdl template's NA since we use these for the files path
+    # https://github.com/ytdl-org/youtube-dl/blob/fca6dba8b80286ae6d3ca0a60c4799c220a52650/youtube_dl/YoutubeDL.py#L659
+    if (ytdl_info['uploader'] is None):
+        ytdl_info['uploader'] = 'NA'
+    if (ytdl_info['uploader_id'] is None):
+        ytdl_info['uploader_id'] = 'NA'
+    if (ytdl_info['upload_date'] is None):
+        ytdl_info['upload_date'] = 'NA'
 
     return ytdl_info
 

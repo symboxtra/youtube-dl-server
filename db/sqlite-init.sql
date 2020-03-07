@@ -21,9 +21,10 @@ CREATE TABLE IF NOT EXISTS format_category (
 INSERT INTO format_category (id, category)
     VALUES
         (1, 'Best'),
-        (2, 'Video'),
-        (3, 'Audio'),
-        (4, 'Worst')
+        (2, 'Profile'),
+        (3, 'Video'),
+        (4, 'Audio'),
+        (5, 'Worst')
 ;
 
 CREATE TABLE IF NOT EXISTS format (
@@ -34,26 +35,26 @@ CREATE TABLE IF NOT EXISTS format (
 );
 INSERT INTO format (category_id, label, value)
     VALUES
-        (1, 'Default', '(bestvideo[vcodec^=av01][height>=1080][fps>30]/bestvideo[vcodec=vp9.2][height>=1080][fps>30]/bestvideo[vcodec=vp9][height>=1080][fps>30]/bestvideo[vcodec^=av01][height>=1080]/bestvideo[vcodec=vp9.2][height>=1080]/bestvideo[vcodec=vp9][height>=1080]/bestvideo[height>=1080]/bestvideo[vcodec^=av01][height>=720][fps>30]/bestvideo[vcodec=vp9.2][height>=720][fps>30]/bestvideo[vcodec=vp9][height>=720][fps>30]/bestvideo[vcodec^=av01][height>=720]/bestvideo[vcodec=vp9.2][height>=720]/bestvideo[vcodec=vp9][height>=720]/bestvideo[height>=720]/bestvideo)+(bestaudio[acodec=opus]/bestaudio)/best'),
         (1, 'Best', 'best'),
         (1, 'Best Audio', 'bestaudio'),
         (1, 'Best Video', 'bestvideo'),
-        (2, 'MP4', 'mp4'),
-        (2, 'Flash Video (FLV)', 'flv'),
-        (2, 'WebM', 'webm'),
-        (2, 'Ogg', 'ogg'),
-        (2, 'Matroska (MKV)', 'mkv'),
-        (2, 'AVI', 'avi'),
-        (3, 'AAC', 'aac'),
-        (3, 'FLAC', 'flac'),
-        (3, 'MP3', 'mp3'),
-        (3, 'M4A', 'm4a'),
-        (3, 'Opus', 'opus'),
-        (3, 'Vorbis', 'vorbis'),
-        (3, 'WAV', 'wav'),
-        (4, 'Worst', 'worst'),
-        (4, 'Worst Video', 'worstvideo'),
-        (4, 'Worst Audio', 'worstaudio')
+        (2, 'Archival', '(bestvideo[vcodec^=av01][height>=1080][fps>30]/bestvideo[vcodec=vp9.2][height>=1080][fps>30]/bestvideo[vcodec=vp9][height>=1080][fps>30]/bestvideo[vcodec^=av01][height>=1080]/bestvideo[vcodec=vp9.2][height>=1080]/bestvideo[vcodec=vp9][height>=1080]/bestvideo[height>=1080]/bestvideo[vcodec^=av01][height>=720][fps>30]/bestvideo[vcodec=vp9.2][height>=720][fps>30]/bestvideo[vcodec=vp9][height>=720][fps>30]/bestvideo[vcodec^=av01][height>=720]/bestvideo[vcodec=vp9.2][height>=720]/bestvideo[vcodec=vp9][height>=720]/bestvideo[height>=720]/bestvideo)+(bestaudio[acodec=opus]/bestaudio)/best'),
+        (3, 'MP4', 'mp4'),
+        (3, 'Flash Video (FLV)', 'flv'),
+        (3, 'WebM', 'webm'),
+        (3, 'Ogg', 'ogg'),
+        (3, 'Matroska (MKV)', 'mkv'),
+        (3, 'AVI', 'avi'),
+        (4, 'AAC', 'aac'),
+        (4, 'FLAC', 'flac'),
+        (4, 'MP3', 'mp3'),
+        (4, 'M4A', 'm4a'),
+        (4, 'Opus', 'opus'),
+        (4, 'Vorbis', 'vorbis'),
+        (4, 'WAV', 'wav'),
+        (5, 'Worst', 'worst'),
+        (5, 'Worst Video', 'worstvideo'),
+        (5, 'Worst Audio', 'worstaudio')
 ;
 
 CREATE TABLE IF NOT EXISTS profile_setting (
@@ -80,7 +81,7 @@ CREATE TABLE IF NOT EXISTS profile_setting (
 INSERT INTO profile_setting VALUES (
     1,
     'Basic',
-    2,
+    (SELECT id FROM format WHERE name = 'Best'),
     './downloaded/basic/%(uploader)s/[%(upload_date)s] %(title)s.%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
@@ -101,7 +102,7 @@ INSERT INTO profile_setting VALUES (
 INSERT INTO profile_setting VALUES (
     2,
     'Archival',
-    1,
+    (SELECT id FROM format WHERE name = 'Archival'),
     './downloaded/archival/%(extractor_key)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
@@ -122,7 +123,7 @@ INSERT INTO profile_setting VALUES (
 INSERT INTO profile_setting VALUES (
     3,
     'Plex',
-    2,
+    (SELECT id FROM format WHERE name = 'Best'),
     './downloaded/plex/%(uploader)s/%(title)s.%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
@@ -277,3 +278,23 @@ CREATE VIEW download_history AS
         in_progress = 0
         AND failed = 0
 ;
+
+
+-- Testing/Research
+
+CREATE TABLE IF NOT EXISTS _uploader_alternative (
+    id INTEGER PRIMARY KEY,
+    extractor TEXT,
+    webpage_url TEXT,
+    uploader_id TEXT,
+    uploader TEXT,
+    uploader_url TEXT,
+    creator TEXT,
+    channel_id TEXT,
+    channel TEXT,
+    channel_url TEXT,
+    playlist_uploader_id, TEXT,
+    playlist_uploader TEXT,
+    artist TEXT,
+    album_artist TEXT
+);
