@@ -161,8 +161,8 @@ def normalize_fields(ytdl_info):
         ytdl_info['uploader'] = 'NA'
     if (ytdl_info['uploader_id'] is None):
         ytdl_info['uploader_id'] = 'NA'
-    if (ytdl_info['upload_date'] is None):
-        ytdl_info['upload_date'] = 'NA'
+    # if (ytdl_info['upload_date'] is None):
+    #     ytdl_info['upload_date'] = 'NA'
 
     return ytdl_info
 

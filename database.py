@@ -2,6 +2,7 @@ import itertools
 import os
 import sqlite3
 from abc import ABC, abstractmethod
+from datetime import datetime
 from pprint import pformat
 
 import version
@@ -126,12 +127,9 @@ class YtdlDatabase(ABC):
         '''
 
         qstring = '''
-            SELECT * FROM video AS v
-                LEFT JOIN extractor AS e ON v.extractor_id = e.id
-                LEFT JOIN format AS f ON v.format_id = f.id
-                LEFT JOIN all_download AS a ON v.id = a.video_id
+            SELECT * FROM video_details
             WHERE
-                v.id = ?
+                id = ?
         '''
         result = self._execute(qstring, [video_db_id])
 
@@ -256,7 +254,7 @@ class YtdlDatabase(ABC):
         Fetch up to `max_count` of the latest video downloads.
         '''
 
-        qstring = '''SELECT * FROM download_history LIMIT ?'''
+        qstring = '''SELECT * FROM video_details LIMIT ?'''
         return self._execute(qstring, [max_count])
 
     @abstractmethod
@@ -332,7 +330,11 @@ class YtdlDatabase(ABC):
         videos in the same format as `get_download_history`.
         '''
 
-        qstring = '''SELECT * FROM download_queue LIMIT ?'''
+        qstring = '''
+            SELECT * FROM video_details
+            WHERE queued = 1
+            LIMIT ?
+        '''
         return self._execute(qstring, [max_count])
 
     def clear_download_queue(self):
@@ -341,8 +343,37 @@ class YtdlDatabase(ABC):
         '''
 
         self._begin()
+        qstring = '''DELETE FROM download_queued'''
+        self._execute(qstring)
+        self._commit()
+
+    def clear_download_in_progress(self):
+        '''
+        Clear the downloads in progress.
+        '''
+
+        self._begin()
         qstring = '''DELETE FROM download_in_progress'''
         self._execute(qstring)
+        self._commit()
+
+    def mark_download_queued(self, video_db_id, not_before=None):
+        '''
+        Queue a download so that it will be
+        downloaded anytime after `not_before`.
+        '''
+
+        if (not_before is None):
+            not_before = datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+
+        self._begin()
+        qstring = '''
+            INSERT INTO download_queued (
+                video_id,
+                not_before
+            ) VALUES (?, ?)
+        '''
+        self._execute(qstring, [video_db_id, not_before])
         self._commit()
 
     def mark_download_started(self, video_db_id):
@@ -412,7 +443,7 @@ class YtdlDatabase(ABC):
         '''
 
         qstring = '''
-            SELECT * FROM all_download
+            SELECT * FROM video_details
             WHERE failed = 1
         '''
         return self._execute(qstring)
@@ -677,7 +708,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
         # Convert date to match SQLite format
         # From YYYYMMDD to YYYY-MM-DD
         upload_date = ytdl_info['upload_date']
-        if (upload_date):
+        if (upload_date and len(upload_date) == len('YYYYMMDD')):
             upload_date = f'{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}'
 
         # Generate the output file path based on the output template

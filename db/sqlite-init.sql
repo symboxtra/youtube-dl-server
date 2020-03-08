@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS format (
 INSERT INTO format (category_id, label, value)
     VALUES
         (1, 'Best', 'best'),
-        (1, 'Best Audio', 'bestaudio'),
         (1, 'Best Video', 'bestvideo'),
+        (1, 'Best Audio', 'bestaudio'),
         (2, 'Archival', '(bestvideo[vcodec^=av01][height>=1080][fps>30]/bestvideo[vcodec=vp9.2][height>=1080][fps>30]/bestvideo[vcodec=vp9][height>=1080][fps>30]/bestvideo[vcodec^=av01][height>=1080]/bestvideo[vcodec=vp9.2][height>=1080]/bestvideo[vcodec=vp9][height>=1080]/bestvideo[height>=1080]/bestvideo[vcodec^=av01][height>=720][fps>30]/bestvideo[vcodec=vp9.2][height>=720][fps>30]/bestvideo[vcodec=vp9][height>=720][fps>30]/bestvideo[vcodec^=av01][height>=720]/bestvideo[vcodec=vp9.2][height>=720]/bestvideo[vcodec=vp9][height>=720]/bestvideo[height>=720]/bestvideo)+(bestaudio[acodec=opus]/bestaudio)/best'),
         (3, 'MP4', 'mp4'),
         (3, 'Flash Video (FLV)', 'flv'),
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS profile_setting (
 INSERT INTO profile_setting VALUES (
     1,
     'Basic',
-    (SELECT id FROM format WHERE name = 'Best'),
+    (SELECT id FROM format WHERE label = 'Best'),
     './downloaded/basic/%(uploader)s/[%(upload_date)s] %(title)s.%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
@@ -102,7 +102,7 @@ INSERT INTO profile_setting VALUES (
 INSERT INTO profile_setting VALUES (
     2,
     'Archival',
-    (SELECT id FROM format WHERE name = 'Archival'),
+    (SELECT id FROM format WHERE label = 'Archival'),
     './downloaded/archival/%(extractor_key)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
@@ -123,7 +123,7 @@ INSERT INTO profile_setting VALUES (
 INSERT INTO profile_setting VALUES (
     3,
     'Plex',
-    (SELECT id FROM format WHERE name = 'Best'),
+    (SELECT id FROM format WHERE label = 'Best'),
     './downloaded/plex/%(uploader)s/%(title)s.%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
@@ -219,7 +219,7 @@ CREATE TABLE IF NOT EXISTS collection (
 CREATE TABLE IF NOT EXISTS video_owner_xref (
     video_id INTEGER REFERENCES video(id),
     collection_id INTEGER REFERENCES collection(id),
-    PRIMARY KEY (video_id, collection_id)
+    PRIMARY KEY (video_id)
 );
 
 -- Every non-standalone video should additionaly be
@@ -231,6 +231,12 @@ CREATE TABLE IF NOT EXISTS video_collection_xref (
     PRIMARY KEY (video_id, collection_id)
 );
 
+CREATE TABLE IF NOT EXISTS download_queued (
+    video_id INTEGER REFERENCES video(id),
+    not_before TEXT DEFAULT (datetime('now', 'localtime')),
+    PRIMARY KEY (video_id)
+);
+
 CREATE TABLE IF NOT EXISTS download_in_progress (
     video_id INTEGER REFERENCES video(id),
     start_datetime TEXT DEFAULT (datetime('now', 'localtime')),
@@ -239,6 +245,7 @@ CREATE TABLE IF NOT EXISTS download_in_progress (
 
 CREATE TABLE IF NOT EXISTS download_failed (
     video_id INTEGER REFERENCES video(id),
+    error_text TEXT DEFAULT 'N/A',
     last_fail_datetime TEXT DEFAULT (datetime('now', 'localtime')),
     PRIMARY KEY (video_id)
 );
@@ -246,39 +253,66 @@ CREATE TABLE IF NOT EXISTS download_failed (
 
 -- Views
 
-DROP VIEW IF EXISTS all_download;
-CREATE VIEW all_download AS
+DROP VIEW IF EXISTS video_details;
+CREATE VIEW video_details AS
     SELECT
-        v.id AS video_id,
-        download_datetime AS datetime,
+        v.id AS id,
+        v.online_id AS online_id,
+        v.title AS title,
+        v.url AS url,
+        v.duration_s AS duration_s,
+        v.upload_date AS upload_date,
+        v.download_datetime AS download_datetime,
+        v.filepath AS filepath,
+        v.filepath_exists AS filepath_exists,
+        v.filepath_last_checked AS filepath_last_checked,
+        c.id AS uploader_id,
+        c.online_title AS uploader_name,
+        c.url AS uploader_url,
+        e.id AS extractor_id,
         e.name AS extractor,
-        url,
-        title,
+        f.id AS format_id,
+        f.label AS format_name,
+        f.value AS format,
+        (v.id IN (SELECT video_id FROM download_queued)) AS queued,
         (v.id IN (SELECT video_id FROM download_in_progress)) AS in_progress,
         (v.id IN (SELECT video_id FROM download_failed)) AS failed
     FROM video AS v
         LEFT JOIN extractor AS e ON v.extractor_id = e.id
+        LEFT JOIN format AS f ON v.format_id = f.id
+        LEFT JOIN video_owner_xref AS vo ON v.id = vo.video_id
+        LEFT JOIN collection AS c ON vo.collection_id = c.id
     ORDER BY download_datetime DESC
 ;
 
-DROP VIEW IF EXISTS download_queue;
-CREATE VIEW download_queue AS
-    SELECT *
-    FROM all_download
-    WHERE
-        in_progress = 1
-        AND failed = 0
+DROP VIEW IF EXISTS collection_details;
+CREATE VIEW collection_details AS
+    SELECT
+        c.id AS id,
+        c.online_id AS online_id,
+        c.online_title AS online_title,
+        c.custom_title AS title,
+        c.url AS url,
+        c.first_download_datetime AS first_download_datetime,
+        c.last_download_datetime AS last_download_datetime,
+        c.last_update_datetime AS last_update_datetime,
+        ct.id AS type_id,
+        ct.name AS type,
+        cs.id AS setting_id,
+        cs.title AS setting_title,
+        cs.description AS setting_description,
+        u.id AS schedule_id,
+        u.title AS schedule_title,
+        u.description AS schedule_description,
+        e.id AS extractor_id,
+        e.name AS extractor
+    FROM collection AS c
+        LEFT JOIN connection_type AS ct ON c.type_id = t.id
+        LEFT JOIN collection_setting AS cs ON c.setting_id = s.id
+        LEFT JOIN update_sched AS u ON c.update_sched_id = u.id
+        LEFT JOIN extractor AS e ON c.extractor = e.id
+    ORDER BY title DESC
 ;
-
-DROP VIEW IF EXISTS download_history;
-CREATE VIEW download_history AS
-    SELECT *
-    FROM all_download
-    WHERE
-        in_progress = 0
-        AND failed = 0
-;
-
 
 -- Testing/Research
 
