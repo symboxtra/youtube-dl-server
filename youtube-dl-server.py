@@ -32,13 +32,37 @@ def bottle_index():
         'history': main_thread_db.get_download_history(),
     }
 
+@app.get('/collection/<collection_db_id:re:[0-9]*>')
+@view('collection')
+def bottle_collection_by_id(collection_db_id):
+    data = main_thread_db.get_collection(collection_db_id)
+
+    if (data is None):
+        raise HTTPError(404, 'Could not find the requested collection.')
+
+    return {
+        'item': data
+    }
+
+@app.get('/collection/<extractor>/<collection_online_id>')
+@view('collection')
+def bottle_collection_by_extractor(extractor, collection_online_id):
+    data = main_thread_db.get_collection_by_extractor_id(extractor, collection_online_id)
+
+    if (data is None):
+        raise HTTPError(404, 'Could not find the requested collection.')
+
+    return {
+        'item': data
+    }
+
 @app.get('/video/<video_db_id:re:[0-9]*>')
 @view('video')
 def bottle_video_by_id(video_db_id):
     data = main_thread_db.get_video(video_db_id)
 
     if (data is None):
-        raise HTTPError(404, f'Could not find the requested video.')
+        raise HTTPError(404, 'Could not find the requested video.')
 
     return {
         'item': data
@@ -50,7 +74,7 @@ def bottle_video_by_extractor(extractor, video_online_id):
     data = main_thread_db.get_video_by_extractor_id(extractor, video_online_id)
 
     if (data is None):
-        raise HTTPError(404, f'Could not find the requested video.')
+        raise HTTPError(404, 'Could not find the requested video.')
 
     return {
         'item': data

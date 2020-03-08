@@ -169,11 +169,9 @@ class YtdlDatabase(ABC):
         '''
 
         qstring = '''
-            SELECT * FROM collection AS c
-                LEFT JOIN collection_type AS t ON c.type_id = t.id
-                LEFT JOIN update_sched AS u ON c.update_sched_id = u.id
+            SELECT * FROM collection_details
             WHERE
-                c.id = ?
+                id = ?
         '''
         result = self._execute(qstring, [collection_db_id])
 

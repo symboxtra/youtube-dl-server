@@ -200,7 +200,7 @@ INSERT INTO collection_setting (title, description) VALUES ('Everything', 'Match
 CREATE TABLE IF NOT EXISTS collection (
     id INTEGER PRIMARY KEY,
     type_id INTEGER REFERENCES collection_type(id),
-    setting INTEGER DEFAULT 1 REFERENCES collection_setting(id),
+    setting_id INTEGER DEFAULT 1 REFERENCES collection_setting(id),
     update_sched_id INTEGER DEFAULT 1 REFERENCES update_sched(id),
     extractor_id INTEGER REFERENCES extractor(id),
     online_id TEXT NOT NULL,
@@ -302,15 +302,15 @@ CREATE VIEW collection_details AS
         cs.title AS setting_title,
         cs.description AS setting_description,
         u.id AS schedule_id,
-        u.title AS schedule_title,
+        u.name AS schedule_name,
         u.description AS schedule_description,
         e.id AS extractor_id,
         e.name AS extractor
     FROM collection AS c
-        LEFT JOIN connection_type AS ct ON c.type_id = t.id
-        LEFT JOIN collection_setting AS cs ON c.setting_id = s.id
+        LEFT JOIN collection_type AS ct ON c.type_id = ct.id
+        LEFT JOIN collection_setting AS cs ON c.setting_id = cs.id
         LEFT JOIN update_sched AS u ON c.update_sched_id = u.id
-        LEFT JOIN extractor AS e ON c.extractor = e.id
+        LEFT JOIN extractor AS e ON c.extractor_id = e.id
     ORDER BY title DESC
 ;
 
