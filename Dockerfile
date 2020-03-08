@@ -2,7 +2,7 @@ FROM python:alpine
 WORKDIR /app
 EXPOSE 8080
 VOLUME ["/app/db", "/app/downloaded"]
-ENV YDL_DOCKER=1
+ENV YDL_SERVER_DOCKER=1
 
 RUN apk add --no-cache \
   ffmpeg \

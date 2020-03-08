@@ -12,7 +12,7 @@ import youtube_dl
 from bottle import Bottle, HTTPError, request, response, route, run, static_file, view
 from database import YtdlDatabase, YtdlSqliteDatabase
 from log import log
-from utils import get_ydl_options, normalize_fields, ytdl_pretty_name
+from utils import get_env_override_set, get_ydl_options, normalize_fields, ytdl_pretty_name
 
 log.setLevel(logging.DEBUG)
 
@@ -78,6 +78,17 @@ def bottle_video_by_extractor(extractor, video_online_id):
 
     return {
         'item': data
+    }
+
+@app.get('/settings')
+@view('settings')
+def bottle_show_settings():
+    settings = main_thread_db.get_settings()
+    overrides = get_env_override_set(settings)
+
+    return {
+        'settings': settings,
+        'overrides': overrides
     }
 
 @app.get('/static/<filename:re:.*>')

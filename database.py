@@ -79,6 +79,7 @@ class YtdlDatabase(ABC):
         qstring = '''
             SELECT * FROM setting AS s
                 LEFT JOIN profile_setting AS ps ON ps.id = s.YDL_SERVER_PROFILE
+                LEFT JOIN format AS f ON ps.default_format = f.id
         '''
 
         return self._execute(qstring)[0]
@@ -97,6 +98,7 @@ class YtdlDatabase(ABC):
         qstring = '''
             SELECT * FROM setting AS s
                 LEFT JOIN profile_setting AS ps ON ps.id = ?
+                LEFT JOIN format AS f ON ps.default_format = f.id
         '''
         joined_settings = self._execute(qstring, [active_profile])[0]
 

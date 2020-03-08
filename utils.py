@@ -20,6 +20,19 @@ def get_env_override(var_name, default=None, quiet=True):
     else:
         return default
 
+def get_env_override_set(settings):
+    '''
+    Return a set of all setting names that are overriden
+    by the environment.
+    '''
+    overriden = set()
+
+    for key in settings.keys():
+        if (is_env_override(key)):
+            overriden.add(key)
+
+    return overriden
+
 def is_env_override(var_name):
     '''
     Check if a settings is overriden by the environment.
