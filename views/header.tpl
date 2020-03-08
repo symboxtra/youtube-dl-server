@@ -11,3 +11,6 @@
 
 	<title>{{get('title', 'youtube-dl')}}</title>
 </head>
+
+<body>
+	<div class="wrapper">

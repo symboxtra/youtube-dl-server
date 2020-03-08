@@ -1,6 +1,5 @@
 %include('header.tpl', title='youtube-dl')
 
-<body>
 	<header>
 		<h1>Multimedia content archival</h1>
 		<p class="lead">
@@ -35,18 +34,18 @@
 		%if (len(failed) > 0):
 		<div id="failed">
 			<h2>Failed</h2>
-			%include('table.tpl', iter=failed)
+			%include('table-video-summary.tpl', iter=failed)
 		</div>
 		%end
 
 		<div id="queued">
 			<h2>Queued</h2>
-			%include('table.tpl', iter=queue)
+			%include('table-video-summary.tpl', iter=queue)
 		</div>
 
 		<div id="Recent">
 			<h2>Recent</h2>
-			%include('table.tpl', iter=history)
+			%include('table-video-summary.tpl', iter=history)
 		</div>
 
 	</main>

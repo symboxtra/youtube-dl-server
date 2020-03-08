@@ -1,3 +1,4 @@
+	</div>
 	<footer>
 		<p>
 			Web frontend for <a href="https://rg3.github.io/youtube-dl/">youtube-dl</a>
