@@ -104,6 +104,70 @@ class YtdlDatabase(ABC):
 
         return merge_env_db_settings(joined_settings, quiet=quiet)
 
+    def get_ydl_options(self):
+        '''
+        Fetch the available youtube-dl option information.
+        '''
+
+        qstring = '''SELECT * FROM ydl_option'''
+        return self._execute(qstring)
+
+    def get_ydl_option(self, env_name):
+        '''
+        Fetch youtube-dl option information for a specific option.
+
+        Returns `None` if the option is not found.
+        '''
+
+        qstring = '''
+            SELECT * FROM ydl_option
+            WHERE
+                env_name = ?
+        '''
+        result = self._execute(qstring, [env_name])
+
+        if (len(result) == 0):
+            return None
+
+        return result[0]
+
+    def update_ydl_options(self):
+        '''
+        Update all youtube-dl options in the database.
+
+        This refreshes the help text and the destination variable.
+        '''
+
+        from youtube_dl import options
+
+        parser = options.parseOpts()[0]
+        options = self.get_ydl_options()
+
+        self._begin()
+
+        for row in options:
+
+            log.debug(row['env_name'])
+            log.debug('    ' + row['cli_flag'])
+
+            parser_opt = parser.get_option(row['cli_flag'])
+            dest_var = parser_opt.dest
+            help_text = parser_opt.help
+
+            log.debug('    ' + dest_var)
+            log.debug('    ' + help_text + '\n')
+
+            qstring = '''
+                UPDATE ydl_option SET
+                    dest_name = ?,
+                    help_text = ?
+                WHERE
+                    env_name = ?
+            '''
+            self._execute(qstring, [dest_var, help_text, row['env_name']])
+
+        self._commit()
+
     def get_format(self, format_id):
         '''
         Fetch the ytdl format string associated with the given id.

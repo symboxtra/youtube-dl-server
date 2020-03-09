@@ -58,6 +58,33 @@ INSERT INTO format (category_id, label, value)
         (5, 'Worst Audio', 'worstaudio')
 ;
 
+CREATE TABLE IF NOT EXISTS ydl_option (
+    env_name TEXT NOT NULL,
+    cli_flag TEXT NOT NULL,
+    plain_name TEXT NOT NULL,
+    dest_name TEXT,
+    help_text TEXT,
+    PRIMARY KEY (env_name)
+);
+INSERT INTO ydl_option (env_name, plain_name, cli_flag) VALUES
+    ('YDL_OUTPUT_TEMPLATE', 'Output template', '--output'),
+    ('YDL_WRITE_SUB', 'Write subtitles', '--write-sub'),
+    ('YDL_ALL_SUBS', 'Write all subtitles', '--all-subs'),
+    ('YDL_IGNORE_ERRORS', 'Ignore errors', '--ignore-errors'),
+    ('YDL_CONTINUE_DL', 'Continue downloads', '--continue'),
+    ('YDL_NO_OVERWRITES', 'No overwrites', '--no-overwrites'),
+    ('YDL_ADD_METADATA', 'Add metadata', '--add-metadata'),
+    ('YDL_WRITE_DESCRIPTION', 'Write description', '--write-description'),
+    ('YDL_WRITE_INFO_JSON', 'Write .info.json', '--write-info-json'),
+    ('YDL_WRITE_ANNOTATIONS', 'Write annotations', '--write-annotations'),
+    ('YDL_WRITE_THUMBNAIL', 'Write thumbnail', '--write-thumbnail'),
+    ('YDL_EMBED_THUMBNAIL', 'Embed thumbnail', '--embed-thumbnail'),
+    ('YDL_SUB_FORMAT', 'Subtitle format', '--sub-format'),
+    ('YDL_EMBED_SUBS', 'Embed subtitles', '--embed-subs'),
+    ('YDL_MERGE_OUTPUT_FORMAT', 'Merged format', '--merge-output-format'),
+    ('YDL_RECODE_VIDEO', 'Recode video', '--recode-video')
+;
+
 CREATE TABLE IF NOT EXISTS profile_setting (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,

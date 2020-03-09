@@ -84,11 +84,11 @@ def bottle_video_by_extractor(extractor, video_online_id):
 @view('settings')
 def bottle_show_settings():
     settings = main_thread_db.get_settings()
-    overrides = get_env_override_set(settings)
 
     return {
         'settings': settings,
-        'overrides': overrides
+        'ydl_options': main_thread_db.get_ydl_options(),
+        'overrides': get_env_override_set(settings)
     }
 
 @app.get('/static/<filename:re:.*>')
@@ -271,6 +271,8 @@ if (__name__ == '__main__'):
         log.info(update_result['output'])
     if (len(update_result['error']) > 0):
         log.warning(update_result['error'])
+
+    main_thread_db.update_ydl_options()
 
     app_vars = main_thread_db.get_settings()
 

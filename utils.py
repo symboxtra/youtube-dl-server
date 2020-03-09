@@ -55,9 +55,13 @@ def get_ydl_options(db, request_options):
 
     The options are a combination of database settings, environment overrides,
     and request values.
-    '''
 
-    ydl_vars = db.get_settings()
+    List of all options can be found at:
+
+    https://github.com/ytdl-org/youtube-dl/blob/fca6dba8b80286ae6d3ca0a60c4799c220a52650/youtube_dl/YoutubeDL.py#L141
+
+    https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/options.py
+    '''
 
     # TODO: Add:
     # playliststart
@@ -78,30 +82,22 @@ def get_ydl_options(db, request_options):
     # ratelimit
     # progresshooks?
 
-    # List of all options can be found here:
-    # https://github.com/ytdl-org/youtube-dl/blob/fca6dba8b80286ae6d3ca0a60c4799c220a52650/youtube_dl/YoutubeDL.py#L141
-    # https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/options.py
-    return {
+    options = {
         'format': db.get_format(request_options['format']),
-        'outtmpl': ydl_vars['YDL_OUTPUT_TEMPLATE'],
-        'writesubtitles': bool(ydl_vars['YDL_WRITE_SUB']),          # --write-sub
-        'allsubtitles': bool(ydl_vars['YDL_ALL_SUBS']),             # --all-subs
-        'ignoreerrors': bool(ydl_vars['YDL_IGNORE_ERRORS']),        # --ignore-errors
-        'continue_dl': bool(ydl_vars['YDL_CONTINUE_DL']),           # --no-continue
-        'nooverwrites': bool(ydl_vars['YDL_NO_OVERWRITES']),        # --no-overwrites
-        'addmetadata': bool(ydl_vars['YDL_ADD_METADATA']),          # --add-metadata
-        'writedescription': bool(ydl_vars['YDL_WRITE_DESCRIPTION']),# --write-description
-        'writeinfojson': bool(ydl_vars['YDL_WRITE_INFO_JSON']),     # --write-info-json
-        'writeannotations': bool(ydl_vars['YDL_WRITE_ANNOTATIONS']),# --write-annotations
-        'writethumbnail': bool(ydl_vars['YDL_WRITE_THUMBNAIL']),    # --write-thumbnail
-        'embedthumbnail': bool(ydl_vars['YDL_EMBED_THUMBNAIL']),    # --embed-thumbnail
-        'subtitlesformat': ydl_vars['YDL_SUB_FORMAT'],              # --sub-format 'srt'
-        'embedsubtitles': bool(ydl_vars['YDL_WRITE_SUB']),          # --embed-subs
-        'merge_output_format': ydl_vars['YDL_MERGE_OUTPUT_FORMAT'], # --merge-output-format 'mkv'
-        'recodevideo': ydl_vars['YDL_RECODE_VIDEO'],                # --recode-video 'mkv'
         'call_home': False,
         'logger': log
     }
+
+    all_opts = db.get_ydl_options()
+    settings = db.get_settings()
+
+    for row in all_opts:
+        env_name = row['env_name']
+        dest_name = row['dest_name']
+
+        options[dest_name] = settings[env_name]
+
+    return options
 
 def merge_env_db_settings(db_settings, quiet=True):
     '''
