@@ -282,13 +282,18 @@ if (__name__ == '__main__'):
 
     # download_executor = ThreadPoolExecutor(max_workers=4)
 
-    log.info('Updating youtube-dl to the newest version')
-    update_result = bottle_update()
+    if (not 'YDL_SERVER_DOCKER' in os.environ):
+        log.info('Updating youtube-dl to the newest version')
+        update_result = bottle_update()
 
-    if (len(update_result['output']) > 0):
-        log.info(update_result['output'])
-    if (len(update_result['error']) > 0):
-        log.warning(update_result['error'])
+        if (len(update_result['output']) > 0):
+            log.info(update_result['output'])
+        if (len(update_result['error']) > 0):
+            log.warning(update_result['error'])
+
+    else:
+        log.warning('Docker detected. youtube-dl will not be auto-updated')
+        log.warning('Pull the newest container to stay up to date\n')
 
     main_thread_db.update_ydl_options()
 
