@@ -222,6 +222,10 @@ def download_video(db, ytdl_info, request_options):
     Download the specified video.
     '''
 
+    # Create a youtube-dl instance
+    ydl_options = get_ydl_options(db, request_options)
+    ydl = youtube_dl.YoutubeDL(ydl_options)
+
     ytdl_info = normalize_fields(ytdl_info)
 
     # Check if the video already exists
@@ -241,6 +245,11 @@ def download_video(db, ytdl_info, request_options):
         # add the video to it
         db.insert_extractor(ytdl_info)
         channel_db_id = db.insert_collection(ytdl_info, YtdlDatabase.collection.CHANNEL)
+
+        # Use our instance to create the filepath and sneak it
+        # in using the dictionary
+        ytdl_info['___filepath'] = ydl.prepare_filename(ytdl_info)
+
         video_db_id = db.insert_video(ytdl_info, request_options['format'])
 
         db.insert_video_owner_xref(video_db_id, channel_db_id)
@@ -252,15 +261,12 @@ def download_video(db, ytdl_info, request_options):
         print()
         log.info(f'Starting download for {ytdl_pretty_name(ytdl_info)}...\n')
 
-        ydl_options = get_ydl_options(db, request_options)
-
         # Actually download the video(s)
-        with youtube_dl.YoutubeDL(ydl_options) as ydl:
-            ydl.process_video_result(ytdl_info, download=True)
+        ydl.process_video_result(ytdl_info, download=True)
 
-            # TODO: Check disk for the output file so we don't have to rely on this
-            return_code = ydl._download_retcode
-            success = (return_code == 0)
+        # TODO: Check disk for the output file so we don't have to rely on this
+        return_code = ydl._download_retcode
+        success = (return_code == 0)
 
         print()
         if (success):

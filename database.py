@@ -776,10 +776,8 @@ class YtdlSqliteDatabase(YtdlDatabase):
         if (upload_date and len(upload_date) == len('YYYYMMDD')):
             upload_date = f'{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}'
 
-        # Generate the output file path based on the output template
-        filepath_fstring = self.get_settings()['YDL_OUTPUT_TEMPLATE']
-        filepath = filepath_fstring % ytdl_info
-        filepath.replace('/', '_')
+        # Grab the filepath that we snuck in
+        filepath = ytdl_info['___filepath']
 
         log.debug(f'Populated output template: {filepath}')
 
