@@ -36,7 +36,15 @@
     </tr>
     <tr>
         <td><b>File:</b></td>
-        <td><code>{{item['filepath']}}</code></td>
+        <td>
+            %if ('filepath_link' in item):
+            <a href="{{item['filepath_link']}}">
+                <code>{{item['filepath']}}</code>
+            </a>
+            %else:
+            <code>{{item['filepath']}}</code>
+            %end
+        </td>
     </tr>
     <tr>
         <td><b>File exists:</b></td>

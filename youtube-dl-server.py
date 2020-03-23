@@ -12,7 +12,7 @@ import youtube_dl
 from bottle import Bottle, HTTPError, redirect, request, response, route, run, static_file, view
 from database import YtdlDatabase, YtdlSqliteDatabase
 from log import log
-from utils import get_env_override_set, get_ydl_options, normalize_fields, ytdl_pretty_name
+from utils import get_env_override_set, get_ydl_options, handle_servable_filepath, normalize_fields, ytdl_pretty_name
 
 log.setLevel(logging.DEBUG)
 
@@ -64,6 +64,8 @@ def bottle_video_by_id(video_db_id):
     if (data is None):
         raise HTTPError(404, 'Could not find the requested video.')
 
+    data = handle_servable_filepath(main_thread_db, data)
+
     return {
         'item': data
     }
@@ -75,6 +77,8 @@ def bottle_video_by_extractor(extractor, video_online_id):
 
     if (data is None):
         raise HTTPError(404, 'Could not find the requested video.')
+
+    data = handle_servable_filepath(main_thread_db, data)
 
     return {
         'item': data

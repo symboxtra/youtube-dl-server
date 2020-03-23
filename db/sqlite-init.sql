@@ -169,6 +169,27 @@ INSERT INTO profile_setting VALUES (
     'mp4',  -- MERGE_OUTPUT_FORMAT
     'mp4'   -- RECODE_VIDEO
 );
+INSERT INTO profile_setting VALUES (
+    4,
+    'Servable',
+    (SELECT id FROM format WHERE label = 'Best'),
+    './static/video/%(uploader)s/%(title)s.%(ext)s',
+    1,      -- WRITE_SUB
+    1,      -- ALL_SUBS
+    1,      -- IGNORE_ERRORS
+    0,      -- CONTINUE_DL
+    1,      -- NO_OVERWRITES
+    1,      -- ADD_METADATA
+    0,      -- WRITE_DESCRIPTION
+    0,      -- WRITE_INFO_JSON
+    0,      -- WRITE_ANNOTATIONS
+    0,      -- WRITE_THUMBNAIL
+    1,      -- EMBED_THUMBNAIL
+    'srt',  -- SUB_FORMAT
+    1,      -- EMBED_SUBS
+    'mkv',  -- MERGE_OUTPUT_FORMAT
+    'mkv'   -- RECODE_VIDEO
+);
 
 CREATE TABLE IF NOT EXISTS update_sched (
     id INTEGER PRIMARY KEY,

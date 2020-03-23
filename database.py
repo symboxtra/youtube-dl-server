@@ -27,6 +27,7 @@ class YtdlDatabase(ABC):
         BASIC = 1
         ARCHIVAL = 2
         PLEX = 3
+        SERVABLE = 4
 
     class formats:
         DEFAULT = 1
