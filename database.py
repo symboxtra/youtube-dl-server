@@ -779,6 +779,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
         # Generate the output file path based on the output template
         filepath_fstring = self.get_settings()['YDL_OUTPUT_TEMPLATE']
         filepath = filepath_fstring % ytdl_info
+        filepath.replace('/', '_')
 
         log.debug(f'Populated output template: {filepath}')
 
