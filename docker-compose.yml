@@ -1,0 +1,20 @@
+version: '3.7'
+
+services:
+
+  youtube-dl-subd:
+    image: youtube-dl-subscribed
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      - YDL_SERVER_PROFILE=4
+    ports:
+      - 8080:8080
+    volumes:
+      - video:/app/static/video
+      - video:/app/downloaded
+
+volumes:
+  video:
+    external: 'false'

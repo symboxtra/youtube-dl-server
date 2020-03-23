@@ -38,7 +38,7 @@
         <td><b>File:</b></td>
         <td>
             %if ('filepath_link' in item):
-            <a href="{{item['filepath_link']}}" download="{{item['title']}}">
+            <a href="{{item['filepath_link']}}" download>
                 <code>{{item['filepath']}}</code>
             </a>
             %else:
