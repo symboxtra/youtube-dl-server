@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pprint import pformat, pprint
 
 import youtube_dl
-from bottle import Bottle, HTTPError, request, response, route, run, static_file, view
+from bottle import Bottle, HTTPError, redirect, request, response, route, run, static_file, view
 from database import YtdlDatabase, YtdlSqliteDatabase
 from log import log
 from utils import get_env_override_set, get_ydl_options, normalize_fields, ytdl_pretty_name
@@ -108,12 +108,17 @@ def bottle_get_queue():
 @app.post('/api/queue')
 def bottle_add_to_queue():
     url = request.forms.get('url')
+    do_redirect_str = request.forms.get('redirect')
+
     request_options = {
         'url': url,
         'format': request.forms.get('format')
     }
+    do_redirect = True
+    if (not do_redirect_str is None):
+        do_redirect = do_redirect_str.lower() != "false" and do_redirect_str != "0"
 
-    if (not url):
+    if (url is None or len(url) == 0):
         raise HTTPError(400, "Missing 'url' query parameter")
 
     error = download(url, request_options)
@@ -121,6 +126,9 @@ def bottle_add_to_queue():
 
     if (len(error) > 0):
         raise HTTPError(500, error)
+
+    if (do_redirect):
+        return redirect('/')
 
     return bottle_get_queue()
 

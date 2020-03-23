@@ -45,6 +45,10 @@ table, tr, th, td {
   padding: 16px;
 }
 
+.lead {
+  text-align: center;
+}
+
 .data-table {
   width: 100%;
 }

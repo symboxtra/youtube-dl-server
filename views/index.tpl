@@ -1,15 +1,17 @@
 %include('header.tpl', title='youtube-dl')
 
 	<header>
-		<h1>Multimedia content archival</h1>
+		<h1>Multimedia Content Archival</h1>
 		<p class="lead">
-			Provide a <a href="https://rg3.github.io/youtube-dl/supportedsites.html">youtube-dl supported</a>
-			video URL to download the video to the server.
+			Provide a <a href="https://rg3.github.io/youtube-dl/supportedsites.html">supported</a>
+			video URL to download the video.
 		</p>
 	</header>
 	<main>
 
 		<form action="api/queue" method="POST">
+			<input type="hidden" name="redirect" value="true">
+
 			<div class="input">
 				<input class="input__url" name="url" type="url" placeholder="URL" aria-label="URL" aria-describedby="button-submit">
 
