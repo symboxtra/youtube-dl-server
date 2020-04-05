@@ -4,8 +4,6 @@ import os
 from .app import app, bottle_pip_update, db
 from .log import log
 
-log.setLevel(logging.DEBUG)
-
 def main():
 
     if (not 'YDL_SERVER_DOCKER' in os.environ):

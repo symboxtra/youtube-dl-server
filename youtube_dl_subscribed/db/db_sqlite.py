@@ -4,9 +4,9 @@ import sqlite3
 from pprint import pformat
 
 from .db_base import YtdlDatabase, YtdlDatabaseError
-from .log import log
-from .utils import get_env_override, get_resource_path, get_storage_path
-from .version import __version__
+from ..log import log
+from ..utils import get_env_override, get_resource_path, get_storage_path
+from ..version import __version__
 
 class YtdlSqliteDatabase(YtdlDatabase):
 

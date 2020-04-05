@@ -3,7 +3,7 @@ import os
 from pprint import pformat, pprint
 
 import youtube_dl
-from .db_sqlite import YtdlDatabase, YtdlSqliteDatabase
+from .db.db_sqlite import YtdlDatabase, YtdlSqliteDatabase
 from .log import log
 from .utils import get_ydl_options, normalize_fields, ytdl_pretty_name
 
