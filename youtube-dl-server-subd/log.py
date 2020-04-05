@@ -9,11 +9,19 @@ def log_sql(self, msg, *args, **kwargs):
         self._log(logging.SQL, msg, args, **kwargs)
 logging.Logger.sql = log_sql
 
-log = logging.getLogger('youtube-dl-server-subscribed')
-log.setLevel(logging.INFO)
+def setup_logger(name):
 
-handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter('%(levelname)-7s: %(message)s')
-handler.setFormatter(formatter)
+    log = logging.getLogger(name)
+    log.setLevel(logging.INFO)
 
-log.addHandler(handler)
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter('%(levelname)-7s: %(message)s')
+    handler.setFormatter(formatter)
+
+    log.addHandler(handler)
+
+    return log
+
+print(__package__)
+print(__name__)
+log = setup_logger('youtube-dl-server-subscribed')

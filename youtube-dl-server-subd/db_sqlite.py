@@ -3,10 +3,10 @@ import os
 import sqlite3
 from pprint import pformat
 
-from db_base import YtdlDatabase, YtdlDatabaseError
-from log import log
-from utils import get_env_override
-import version
+from .db_base import YtdlDatabase, YtdlDatabaseError
+from .log import log
+from .utils import get_env_override, get_resource_path, get_storage_path
+from .version import __version__
 
 class YtdlSqliteDatabase(YtdlDatabase):
 
@@ -16,7 +16,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
         '''
 
         if (not 'path' in connection_params):
-            connection_params['path'] = 'db/youtube-dl-sub.db'
+            connection_params['path'] = get_storage_path('data.db')
 
         log.info(f'Using SQLite database at: {connection_params["path"]}')
 
@@ -37,7 +37,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
         # TODO: Migrations first
         self._begin()
         qstring = '''UPDATE setting SET version = ?'''
-        self._execute(qstring, [version.__version__])
+        self._execute(qstring, [__version__])
         self._commit()
 
     def _begin(self):
@@ -66,7 +66,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
         Setup all database tables and default values using the initialization script.
         '''
 
-        with open('db/sqlite-init.sql', mode='r') as f:
+        with open(get_resource_path('db/sqlite-init.sql'), mode='r') as f:
             qstring = f.read()
 
         self._begin()
@@ -89,7 +89,7 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         # Set the default settings for a new database
         self._execute(qstring, [
-            version.__version__,
+            __version__,
             profile,
             address,
             port,

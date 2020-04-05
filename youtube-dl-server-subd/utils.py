@@ -3,7 +3,7 @@ import string
 from datetime import datetime
 import os
 
-from log import log
+from .log import log
 
 def get_env_override(var_name, default=None, quiet=True):
     '''
@@ -174,6 +174,21 @@ def normalize_fields(ytdl_info):
     #     ytdl_info['upload_date'] = 'NA'
 
     return ytdl_info
+
+def get_resource_path(path):
+
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, path)
+
+def get_storage_path(path):
+
+    base_path = os.path.expanduser('~')
+    folder_path = os.path.join(base_path, '.youtube-dl-subscribed')
+
+    if (not os.path.exists(folder_path)):
+        os.mkdir(folder_path)
+
+    return os.path.join(folder_path, path)
 
 def handle_servable_filepath(db, db_info):
 

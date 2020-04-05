@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from log import log
-from utils import get_env_override, merge_env_db_settings
+from .log import log
+from .utils import get_env_override, merge_env_db_settings
 
 class YtdlDatabaseError(Exception):
     pass
