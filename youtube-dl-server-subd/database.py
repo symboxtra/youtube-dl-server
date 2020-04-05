@@ -314,21 +314,38 @@ class YtdlDatabase(ABC):
 
         return result[0]
 
-    def get_download_history(self, max_count=15):
+    def get_recent_downloads(self, max_count=15):
         '''
         Fetch up to `max_count` of the latest video downloads.
         '''
 
-        qstring = '''SELECT * FROM video_details LIMIT ?'''
+        qstring = '''SELECT * FROM video_details ORDER BY download_datetime LIMIT ?'''
         return self._execute(qstring, [max_count])
 
-    @abstractmethod
     def get_format_options(self):
         '''
         Retrieve the format options as a dictionary of categories
         containing lists of constituents.
         '''
-        pass
+
+        qstring = '''
+            SELECT f.id, category, label, value
+            FROM format AS f
+            LEFT JOIN format_category AS fc
+                ON f.category_id = fc.id;
+        '''
+
+        results = self._execute(qstring)
+
+        categories = {}
+        for row in results:
+            category = row['category']
+            if category not in categories:
+                categories[category] = []
+
+            categories[category].append(row)
+
+        return categories
 
     @abstractmethod
     def insert_extractor(self, ytdl_info):
@@ -336,6 +353,8 @@ class YtdlDatabase(ABC):
         Insert a new extractor if it does not exist already.
 
         :return extractor_db_id for the inserted or already existing extractor
+
+        ABSTRACT: needs to ignore duplicate conflicts
         '''
         pass
 
@@ -345,6 +364,8 @@ class YtdlDatabase(ABC):
         Insert a new collection for the given id/extractor/type if it does not exist already.
 
         :return collection_db_id for the inserted or already existing collection
+
+        ABSTRACT: needs to ignore duplicate conflicts
         '''
         pass
 
@@ -354,6 +375,8 @@ class YtdlDatabase(ABC):
         Insert a new video. The video should not exist already.
 
         :return video_db_id for the inserted video
+
+        ABSTRACT: formats datetime to database specific format
         '''
         pass
 
@@ -386,13 +409,15 @@ class YtdlDatabase(ABC):
         Associate a video with a given collection.
 
         If the association already exists, the ordering index will be updated.
+
+        ABSTRACT: needs to update on duplicate conflict
         '''
         pass
 
-    def get_download_queue(self, max_count=15):
+    def get_queued_downloads(self, max_count=15):
         '''
         Get information about the currently downloading
-        videos in the same format as `get_download_history`.
+        videos in the same format as `get_recent_downloads`.
         '''
 
         qstring = '''
@@ -501,7 +526,29 @@ class YtdlDatabase(ABC):
         self._execute(qstring, [video_db_id])
         self._commit()
 
-    def get_download_failures(self):
+    @abstractmethod
+    def mark_file_status(self, video_db_id, is_present):
+        '''
+        Mark a given video's file as present or missing
+        on disk.
+
+        ABSTRACT: needs to use date/time functions
+        '''
+        pass
+
+    def mark_file_present(self, video_db_id):
+        '''
+        Mark a given video's file as present on disk.
+        '''
+        self.mark_file_status(video_db_id, True)
+
+    def mark_file_missing(self, video_db_id):
+        '''
+        Mark a given video's file as missing on disk.
+        '''
+        self.mark_file_status(video_db_id, False)
+
+    def get_failed_downloads(self):
         '''
         Get infomration about videos that failed to
         download.
@@ -644,27 +691,6 @@ class YtdlSqliteDatabase(YtdlDatabase):
         self._commit()
 
         log.info('Initialized SQLite database')
-
-    def get_format_options(self):
-
-        qstring = '''
-            SELECT f.id, category, label, value
-            FROM format AS f
-            LEFT JOIN format_category AS fc
-                ON f.category_id = fc.id;
-        '''
-
-        cursor = self.db.execute(qstring)
-
-        categories = {}
-        for row in cursor:
-            category = row['category']
-            if category not in categories:
-                categories[category] = []
-
-            categories[category].append(row)
-
-        return categories
 
     def insert_extractor(self, ytdl_info):
 
@@ -843,6 +869,23 @@ class YtdlSqliteDatabase(YtdlDatabase):
                 ordered_index
             ])
 
+        self._commit()
+
+    def mark_file_status(self, video_db_id, is_present):
+
+        self._begin()
+        qstring = '''
+            UPDATE video SET
+                filepath_exists = ?,
+                filepath_last_checked = datetime('now', 'localtime')
+            WHERE
+                id = ?
+        '''
+
+        self._execute(qstring, [
+            is_present,
+            video_db_id
+        ])
         self._commit()
 
     def __del__(self):

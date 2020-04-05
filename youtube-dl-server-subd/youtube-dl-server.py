@@ -27,9 +27,9 @@ def bottle_index():
     return {
         'format_options': main_thread_db.get_format_options(),
         'default_format': main_thread_db.get_settings()['default_format'],
-        'failed': main_thread_db.get_download_failures(),
-        'queue': main_thread_db.get_download_queue(),
-        'history': main_thread_db.get_download_history(),
+        'failed': main_thread_db.get_failed_downloads(),
+        'queue': main_thread_db.get_queued_downloads(),
+        'history': main_thread_db.get_recent_downloads(),
     }
 
 @app.get('/collection/<collection_db_id:re:[0-9]*>')
@@ -101,7 +101,7 @@ def bottle_static(filename):
 
 @app.get('/api/queue')
 def bottle_get_queue():
-    download_queue = main_thread_db.result_to_simple_type(main_thread_db.get_download_queue())
+    download_queue = main_thread_db.result_to_simple_type(main_thread_db.get_queued_downloads())
     return {
         'count': len(download_queue),
         'items': download_queue
@@ -138,7 +138,7 @@ def bottle_add_to_queue():
 
 @app.get('/api/failed')
 def bottle_get_failed():
-    failed = main_thread_db.result_to_simple_type(main_thread_db.get_download_failures())
+    failed = main_thread_db.result_to_simple_type(main_thread_db.get_failed_downloads())
     return {
         'count': len(failed),
         'items': failed
@@ -176,7 +176,8 @@ def download(url, request_options):
 
             data_type = data['_type']
 
-            # Source code shows video, playlist, compat_list, multi_video, url, and url_transparent
+            # Source code includes video, playlist, compat_list, multi_video, url, and url_transparent
+            # Channels are represented as "Uploads" playlist on YouTube
             if (data_type == 'video'):
                 download_video(child_thread_db, data, request_options)
             elif (data_type == 'playlist' or data_type == 'multi_video' or data_type == 'compat_list'):
@@ -233,9 +234,11 @@ def download_video(db, ytdl_info, request_options):
 
     needs_download = True
     if (video_data):
-        # TODO: Actively check disk to see if the path still exists
-        needs_download = (not video_data['filepath_exists'])
+
         video_db_id = video_data['id']
+        needs_download = not os.path.exists(video_data['filepath'])
+
+        db.mark_file_status(video_db_id, not needs_download)
 
         log.info(f'Video "{ytdl_info["title"]}" already exists in the database. File missing on disk?: {needs_download}')
 
@@ -264,9 +267,9 @@ def download_video(db, ytdl_info, request_options):
         # Actually download the video(s)
         ydl.process_video_result(ytdl_info, download=True)
 
-        # TODO: Check disk for the output file so we don't have to rely on this
+        # Check disk for the output file so we don't have to rely on this
         return_code = ydl._download_retcode
-        success = (return_code == 0)
+        success = (os.path.exists(video_data['filepath']) and return_code == 0)
 
         print()
         if (success):
@@ -275,6 +278,7 @@ def download_video(db, ytdl_info, request_options):
             log.error(f'Download failed for {ytdl_pretty_name(ytdl_info)}. Ytdl returned {return_code}')
 
         db.mark_download_ended(video_db_id, success=success)
+        db.mark_file_status(video_db_id, success)
 
     return video_db_id
 

@@ -262,8 +262,8 @@ CREATE TABLE IF NOT EXISTS collection (
     UNIQUE (online_id, extractor_id)
 );
 
--- Every video should belong to a channel
--- Even if downloaded as standalone, the channel/owner
+-- Every video should belong to an owner
+-- Even if downloaded as standalone, the owner/uploader/channel
 -- collection should be recorded here
 CREATE TABLE IF NOT EXISTS video_owner_xref (
     video_id INTEGER REFERENCES video(id),
