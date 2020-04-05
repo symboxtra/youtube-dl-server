@@ -10,7 +10,8 @@ from pprint import pformat, pprint
 
 import youtube_dl
 from bottle import Bottle, HTTPError, redirect, request, response, route, run, static_file, view
-from database import YtdlDatabase, YtdlSqliteDatabase
+from db_base import YtdlDatabase
+from db_sqlite import YtdlSqliteDatabase
 from log import log
 from utils import get_env_override_set, get_ydl_options, handle_servable_filepath, normalize_fields, ytdl_pretty_name
 
