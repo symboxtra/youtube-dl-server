@@ -22,6 +22,4 @@ def setup_logger(name):
 
     return log
 
-print(__package__)
-print(__name__)
-log = setup_logger('youtube-dl-server-subscribed')
+log = setup_logger(__package__)

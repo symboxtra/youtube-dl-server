@@ -1,7 +1,8 @@
 .vscode
 __pycache__
 env
-db/*.db
+win-env
+*.db
 
 downloaded
 static/video
