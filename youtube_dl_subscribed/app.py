@@ -1,21 +1,11 @@
-import json
 import subprocess
 
 from bottle import Bottle, HTTPError, redirect, request, response, route, run, static_file, view
-from .db.db_sqlite import YtdlSqliteDatabase
+from .db import YtdlDatabase
 from .log import log
-from .utils import get_env_override_set, get_resource_path, get_storage_path, get_ydl_options, handle_servable_filepath
+from .utils import get_env_override, get_env_override_set, get_resource_path, get_storage_path, get_ydl_options, handle_servable_filepath
 
-# TODO: Figure out how to unify opening a connection to the db
-try:
-    with open(get_storage_path('db_config.json')) as f:
-        db_config = json.load(f)
-except Exception as e:
-    log.info('Could not open db_config.json. Using default connection settings.')
-    log.debug(e)
-    db_config = {}
-
-db = YtdlSqliteDatabase(db_config)
+db = YtdlDatabase.factory(get_env_override('YDL_DB_BACKEND', default='sqlite', quiet=False))
 app = Bottle()
 
 @app.get('/')

@@ -3,16 +3,16 @@ import os
 from pprint import pformat, pprint
 
 import youtube_dl
-from .db.db_sqlite import YtdlDatabase, YtdlSqliteDatabase
+from .db import YtdlDatabase
 from .log import log
-from .utils import get_ydl_options, normalize_fields, ytdl_pretty_name
+from .utils import get_env_override, get_ydl_options, normalize_fields, ytdl_pretty_name
 
 def download(url, request_options):
 
     log.info(f'Processing request for {url}...')
 
     # Open a connection to the database
-    child_thread_db = YtdlSqliteDatabase()
+    child_thread_db = YtdlDatabase.factory(get_env_override('YDL_DB_BACKEND', default='sqlite'))
     ydl_options = get_ydl_options(child_thread_db, request_options)
 
     with youtube_dl.YoutubeDL(ydl_options) as ydl:

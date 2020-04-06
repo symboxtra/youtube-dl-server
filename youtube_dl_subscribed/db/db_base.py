@@ -1,8 +1,9 @@
+import json
 from abc import ABC, abstractmethod
 from datetime import datetime
 
 from ..log import log
-from ..utils import get_env_override, merge_env_db_settings
+from ..utils import get_env_override, get_storage_path, merge_env_db_settings
 
 class YtdlDatabaseError(Exception):
     pass
@@ -17,7 +18,15 @@ class YtdlDatabase(ABC):
     implemented by the child class.
     '''
 
-    # Enums based on order of insertion for SQlite
+    @staticmethod
+    def factory(db_type):
+        if (db_type == 'sqlite'):
+            from .db_sqlite import YtdlSqliteDatabase
+            return YtdlSqliteDatabase()
+        else:
+            raise YtdlDatabaseError(f'Unknown database backend type: {db_type}')
+
+    # Enums based on order of insertion for SQLite
     class profile:
         BASIC = 1
         ARCHIVAL = 2
@@ -31,9 +40,21 @@ class YtdlDatabase(ABC):
         CHANNEL = 1
         PLAYLIST = 2
 
-    @abstractmethod
-    def __init__(self, connection_params={}):
-        pass
+    def __init__(self):
+        '''
+        Load settings from the database configuration file at
+        `~/.youtube_dl_subscribed/db_config.json`
+        '''
+
+        try:
+            with open(get_storage_path('db_config.json')) as f:
+                db_config = json.load(f)
+        except Exception as e:
+            log.info('Could not open db_config.json. Using default connection settings.')
+            log.debug(e)
+            db_config = {}
+
+        self.db_config = db_config
 
     @abstractmethod
     def _begin(self):

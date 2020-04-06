@@ -3,25 +3,29 @@ import os
 import sqlite3
 from pprint import pformat
 
-from .db_base import YtdlDatabase, YtdlDatabaseError
 from ..log import log
 from ..utils import get_env_override, get_resource_path, get_storage_path
 from ..version import __version__
+from .db_base import YtdlDatabase, YtdlDatabaseError
 
 class YtdlSqliteDatabase(YtdlDatabase):
 
-    def __init__(self, connection_params={}):
+    def __init__(self):
         '''
-        Open or create the sqlite database.
+        Open or create the SQLite database.
         '''
 
-        if (not 'path' in connection_params):
-            connection_params['path'] = get_storage_path('data.db')
+        super().__init__()
 
-        log.info(f'Using SQLite database at: {connection_params["path"]}')
+        # Decide where to store the database file
+        # Priority (high to low): environment, config file, default
+        db_path = self.db_config.get('YDL_DB_PATH', get_storage_path('data.db'))
+        db_path = get_env_override('YDL_DB_PATH', default=db_path)
 
-        is_new_db = not os.path.exists(connection_params['path'])
-        self.db = sqlite3.connect(connection_params['path'])
+        log.info(f'Using SQLite database at: {db_path}')
+
+        is_new_db = not os.path.exists(db_path)
+        self.db = sqlite3.connect(db_path)
         self.db.row_factory = sqlite3.Row
 
         if (hasattr(log, 'sql')):
