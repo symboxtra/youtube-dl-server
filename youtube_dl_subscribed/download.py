@@ -1,11 +1,16 @@
-import json
 import os
 from pprint import pformat, pprint
 
 import youtube_dl
+
 from .db import YtdlDatabase
 from .log import log
-from .utils import get_env_override, get_ydl_options, normalize_fields, ytdl_pretty_name
+from .utils import (
+    get_env_override,
+    get_ydl_options,
+    normalize_fields,
+    ytdl_pretty_name
+)
 
 def download(url, request_options):
 

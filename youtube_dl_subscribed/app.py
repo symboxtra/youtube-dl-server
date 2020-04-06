@@ -1,9 +1,27 @@
 import subprocess
 
-from bottle import Bottle, HTTPError, redirect, request, response, route, run, static_file, view
+from bottle import (
+    Bottle,
+    HTTPError,
+    redirect,
+    request,
+    response,
+    route,
+    run,
+    static_file,
+    view
+)
+
 from .db import YtdlDatabase
 from .log import log
-from .utils import get_env_override, get_env_override_set, get_resource_path, get_storage_path, get_ydl_options, handle_servable_filepath
+from .utils import (
+    get_env_override,
+    get_env_override_set,
+    get_resource_path,
+    get_storage_path,
+    get_ydl_options,
+    handle_servable_filepath
+)
 
 db = YtdlDatabase.factory(get_env_override('YDL_DB_BACKEND', default='sqlite', quiet=False))
 app = Bottle()
