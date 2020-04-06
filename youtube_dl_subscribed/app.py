@@ -9,11 +9,14 @@ from bottle import (
     route,
     run,
     static_file,
+    TEMPLATE_PATH,
     view
 )
 
 from .db import YtdlDatabase
+from .download import download
 from .log import log
+from .pool import WorkPool
 from .utils import (
     get_env_override,
     get_env_override_set,
@@ -24,6 +27,13 @@ from .utils import (
 )
 
 db = YtdlDatabase.factory(get_env_override('YDL_DB_BACKEND', default='sqlite', quiet=False))
+db.do_migrations()
+
+pool = WorkPool.get_instance()
+
+# Help Bottle find the templates since the
+# working directory won't be a reliable guess
+TEMPLATE_PATH.insert(0, get_resource_path('views'))
 app = Bottle()
 
 @app.get('/')
@@ -130,8 +140,9 @@ def bottle_add_to_queue():
     if (url is None or len(url) == 0):
         raise HTTPError(400, "Missing 'url' query parameter")
 
-    error = download(url, request_options)
-    # download_executor.submit(download, url, request_options)
+    error = ''
+    # error = download(url, request_options)
+    pool.pool.apply_async(download, (url, request_options))
 
     if (len(error) > 0):
         raise HTTPError(500, error)

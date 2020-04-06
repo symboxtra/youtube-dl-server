@@ -23,4 +23,4 @@ def setup_logger(name):
     return log
 
 log = setup_logger(__package__)
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)

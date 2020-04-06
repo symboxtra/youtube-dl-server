@@ -14,11 +14,18 @@ from .utils import (
 
 def download(url, request_options):
 
+    # Import the process's database connection
+    from .pool import db
+
+    # Assume this is not a pooled process if
+    # the db hasn't been initialized
+    # Use the main process db instead
+    if (db is None):
+        from .app import db
+
     log.info(f'Processing request for {url}...')
 
-    # Open a connection to the database
-    child_thread_db = YtdlDatabase.factory(get_env_override('YDL_DB_BACKEND', default='sqlite'))
-    ydl_options = get_ydl_options(child_thread_db, request_options)
+    ydl_options = get_ydl_options(db, request_options)
 
     with youtube_dl.YoutubeDL(ydl_options) as ydl:
 
@@ -33,16 +40,16 @@ def download(url, request_options):
             # Source code includes video, playlist, compat_list, multi_video, url, and url_transparent
             # Channels are represented as "Uploads" playlist on YouTube
             if (data_type == 'video'):
-                download_video(child_thread_db, data, request_options)
+                download_video(db, data, request_options)
             elif (data_type == 'playlist' or data_type == 'multi_video' or data_type == 'compat_list'):
-                download_playlist(child_thread_db, data, request_options)
+                download_playlist(db, data, request_options)
             else:
                 msg = f'Unhandled ytdl response type: {data_type}'
                 log.error(msg)
                 return msg
 
         else:
-            download_video(child_thread_db, data, request_options)
+            download_video(db, data, request_options)
 
     return ''
 
@@ -86,15 +93,15 @@ def download_video(db, ytdl_info, request_options):
     # Check if the video already exists
     video_data = db.get_video_by_extractor_id(ytdl_info['extractor_key'], ytdl_info['id'])
 
-    needs_download = True
+    file_exists = False
     if (video_data):
 
         video_db_id = video_data['id']
-        needs_download = not os.path.exists(video_data['filepath'])
+        file_exists = os.path.exists(video_data['filepath'])
 
-        db.mark_file_status(video_db_id, not needs_download)
+        db.mark_file_status(video_db_id, file_exists)
 
-        log.info(f'Video "{ytdl_info["title"]}" already exists in the database. File missing on disk?: {needs_download}')
+        log.info(f'Video "{ytdl_info["title"]}" already exists in the database. File present?: {file_exists}')
 
     else:
         # Insert the video and its required counterparts
@@ -111,11 +118,15 @@ def download_video(db, ytdl_info, request_options):
 
         db.insert_video_owner_xref(video_db_id, channel_db_id)
 
-    if (needs_download):
+    # Fetch the freshly inserted or updated information
+    video_data = db.get_video(video_db_id)
+    success = file_exists
+
+    if (not file_exists):
 
         db.mark_download_started(video_db_id)
 
-        print()
+        log.info()
         log.info(f'Starting download for {ytdl_pretty_name(ytdl_info)}...\n')
 
         # Actually download the video(s)
@@ -125,13 +136,13 @@ def download_video(db, ytdl_info, request_options):
         return_code = ydl._download_retcode
         success = (os.path.exists(video_data['filepath']) and return_code == 0)
 
-        print()
+        log.info()
         if (success):
             log.info(f'Download completed for {ytdl_pretty_name(ytdl_info)}.')
         else:
             log.error(f'Download failed for {ytdl_pretty_name(ytdl_info)}. Ytdl returned {return_code}')
 
-        db.mark_download_ended(video_db_id, success=success)
-        db.mark_file_status(video_db_id, success)
+    db.mark_download_ended(video_db_id, success=success)
+    db.mark_file_status(video_db_id, success)
 
     return video_db_id

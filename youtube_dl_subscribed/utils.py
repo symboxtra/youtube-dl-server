@@ -175,12 +175,12 @@ def normalize_fields(ytdl_info):
 
     return ytdl_info
 
-def get_resource_path(path):
+def get_resource_path(path=''):
 
     base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, path)
 
-def get_storage_path(path):
+def get_storage_path(path=''):
 
     base_path = os.path.expanduser('~')
     folder_path = os.path.join(base_path, '.youtube-dl-subscribed')

@@ -24,7 +24,7 @@ class YtdlDatabase(ABC):
             from .db_sqlite import YtdlSqliteDatabase
             return YtdlSqliteDatabase()
         else:
-            raise YtdlDatabaseError(f'Unknown database backend type: {db_type}')
+            raise YtdlDatabaseError(f"Unknown database backend '{db_type}'")
 
     # Enums based on order of insertion for SQLite
     class profile:
@@ -50,7 +50,7 @@ class YtdlDatabase(ABC):
             with open(get_storage_path('db_config.json')) as f:
                 db_config = json.load(f)
         except Exception as e:
-            log.info('Could not open db_config.json. Using default connection settings.')
+            log.debug('Could not open db_config.json. Using default connection settings.')
             log.debug(e)
             db_config = {}
 

@@ -24,18 +24,21 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
         log.info(f'Using SQLite database at: {db_path}')
 
-        is_new_db = not os.path.exists(db_path)
+        self.db_path = db_path
         self.db = sqlite3.connect(db_path)
         self.db.row_factory = sqlite3.Row
 
         if (hasattr(log, 'sql')):
             self.db.set_trace_callback(log.sql)
 
-        if (is_new_db):
-            self.init_new_database()
-
         # Make sure the settings and any overrides get logged initially
         log.debug(pformat(self.get_settings(quiet=False)))
+
+    def do_migrations(self):
+
+        is_new_db = not os.path.exists(self.db_path)
+        if (is_new_db):
+            self.init_new_database()
 
         # Make sure version stays up to date
         # TODO: Migrations first
