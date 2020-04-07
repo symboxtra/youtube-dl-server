@@ -335,7 +335,11 @@ class YtdlDatabase(ABC):
         Fetch up to `max_count` of the latest video downloads.
         '''
 
-        qstring = '''SELECT * FROM video_details ORDER BY download_datetime LIMIT ?'''
+        qstring = '''
+            SELECT * FROM video_details
+            ORDER BY download_datetime DESC
+            LIMIT ?
+        '''
         return self._execute(qstring, [max_count])
 
     def get_format_options(self):
@@ -439,6 +443,7 @@ class YtdlDatabase(ABC):
         qstring = '''
             SELECT * FROM video_details
             WHERE queued = 1
+            ORDER BY download_datetime DESC
             LIMIT ?
         '''
         return self._execute(qstring, [max_count])
@@ -573,6 +578,7 @@ class YtdlDatabase(ABC):
         qstring = '''
             SELECT * FROM video_details
             WHERE failed = 1
+            ORDER BY download_datetime DESC
         '''
         return self._execute(qstring)
 

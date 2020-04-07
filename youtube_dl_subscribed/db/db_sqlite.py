@@ -44,6 +44,23 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
             log.debug(pformat(self.get_settings(quiet=False)))
 
+        self._begin()
+        qstring = '''
+            INSERT OR REPLACE INTO download_failed (
+                video_id,
+                last_fail_datetime,
+                error_text
+            ) SELECT
+                video_id,
+                start_datetime,
+                'Server crash or unexpected termination'
+            FROM download_in_progress
+        '''
+        self._execute(qstring)
+        qstring = '''DELETE FROM download_in_progress'''
+        self._execute(qstring)
+        self._commit()
+
         # Make sure version stays up to date
         # TODO: Migrations first
         self._begin()

@@ -101,7 +101,7 @@ def download_video(db, ytdl_info, request_options):
 
         db.mark_file_status(video_db_id, file_exists)
 
-        log.info(f'Video "{ytdl_info["title"]}" already exists in the database. File present?: {file_exists}')
+        log.info(f'Video "{ytdl_info["title"]}" ({ytdl_info["id"]}) already exists in the database. File present?: {file_exists}')
 
     else:
         # Insert the video and its required counterparts
@@ -126,7 +126,7 @@ def download_video(db, ytdl_info, request_options):
 
         db.mark_download_started(video_db_id)
 
-        log.info()
+        log.info('')
         log.info(f'Starting download for {ytdl_pretty_name(ytdl_info)}...\n')
 
         # Actually download the video(s)
@@ -136,7 +136,7 @@ def download_video(db, ytdl_info, request_options):
         return_code = ydl._download_retcode
         success = (os.path.exists(video_data['filepath']) and return_code == 0)
 
-        log.info()
+        log.info('')
         if (success):
             log.info(f'Download completed for {ytdl_pretty_name(ytdl_info)}.')
         else:

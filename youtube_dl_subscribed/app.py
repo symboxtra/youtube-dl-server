@@ -141,8 +141,8 @@ def bottle_add_to_queue():
         raise HTTPError(400, "Missing 'url' query parameter")
 
     error = ''
-    # error = download(url, request_options)
-    pool.pool.apply_async(download, (url, request_options))
+    error = download(url, request_options)
+    # pool.pool.apply_async(download, (url, request_options))
 
     if (len(error) > 0):
         raise HTTPError(500, error)
