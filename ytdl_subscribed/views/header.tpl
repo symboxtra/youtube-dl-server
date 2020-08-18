@@ -9,7 +9,7 @@
 
 	<link href="/static/style.css" rel="stylesheet">
 
-	<title>{{get('title', 'youtube-dl')}}</title>
+	<title>{{get('title', 'YTDL Subscribed')}}</title>
 </head>
 
 <body>

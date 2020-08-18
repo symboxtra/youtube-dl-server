@@ -183,7 +183,7 @@ def get_resource_path(path=''):
 def get_storage_path(path=''):
 
     base_path = os.path.expanduser('~')
-    folder_path = os.path.join(base_path, '.youtube-dl-subscribed')
+    folder_path = os.path.join(base_path, '.ytdl-subscribed')
 
     if (not os.path.exists(folder_path)):
         os.mkdir(folder_path)

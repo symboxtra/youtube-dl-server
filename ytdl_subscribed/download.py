@@ -1,7 +1,7 @@
 import os
 from pprint import pformat, pprint
 
-import youtube_dl
+import youtube_dl as ytdl
 
 from .db import YtdlDatabase
 from .log import log
@@ -27,7 +27,7 @@ def download(url, request_options):
 
     ydl_options = get_ydl_options(db, request_options)
 
-    with youtube_dl.YoutubeDL(ydl_options) as ydl:
+    with ytdl.YoutubeDL(ydl_options) as ydl:
 
         # Download and extract the video metadata
         data = ydl.extract_info(url, download=False)
@@ -84,9 +84,9 @@ def download_video(db, ytdl_info, request_options):
     Download the specified video.
     '''
 
-    # Create a youtube-dl instance
+    # Create a ytdl instance
     ydl_options = get_ydl_options(db, request_options)
-    ydl = youtube_dl.YoutubeDL(ydl_options)
+    ydl = ytdl.YoutubeDL(ydl_options)
 
     ytdl_info = normalize_fields(ytdl_info)
 

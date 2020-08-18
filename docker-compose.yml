@@ -2,8 +2,8 @@ version: '3.7'
 
 services:
 
-  youtube-dl-subd:
-    image: youtube-dl-subscribed
+  ytdl-subscribed:
+    image: ytdl-subscribed
     build:
       context: .
     restart: unless-stopped

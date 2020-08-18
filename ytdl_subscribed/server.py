@@ -15,7 +15,7 @@ def main():
             log.warning(update_result['error'])
 
     else:
-        log.warning('Docker detected. youtube-dl will not be auto-updated')
+        log.warning('Docker detected. youtube-dl will NOT be auto-updated')
         log.warning('Pull the newest container to stay up to date\n')
 
     db.update_ydl_options()

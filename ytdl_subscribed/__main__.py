@@ -1,8 +1,8 @@
 import sys
 
 # Execute with
-# $ python youtube_dl_subscribed/__main__.py
-# $ python -m youtube_dl_subscribed
+# $ python ytdl_subscribed/__main__.py
+# $ python -m ytdl_subscribed
 
 if (__package__ is None and not hasattr(sys, 'frozen')):
     # direct call of __main__.py
@@ -13,4 +13,4 @@ if (__package__ is None and not hasattr(sys, 'frozen')):
 import youtube_dl_subscribed
 
 if (__name__ == '__main__'):
-    youtube_dl_subscribed.main()
+    ytdl_subscribed.main()

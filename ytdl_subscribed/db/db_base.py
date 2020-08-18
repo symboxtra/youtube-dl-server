@@ -43,7 +43,7 @@ class YtdlDatabase(ABC):
     def __init__(self):
         '''
         Load settings from the database configuration file at
-        `~/.youtube_dl_subscribed/db_config.json`
+        `~/.ytdl_subscribed/db_config.json`
         '''
 
         try:
@@ -123,7 +123,7 @@ class YtdlDatabase(ABC):
 
     def get_ydl_options(self):
         '''
-        Fetch the available youtube-dl option information.
+        Fetch the available ytdl option information.
         '''
 
         qstring = '''SELECT * FROM ydl_option'''
@@ -131,7 +131,7 @@ class YtdlDatabase(ABC):
 
     def get_ydl_option(self, env_name):
         '''
-        Fetch youtube-dl option information for a specific option.
+        Fetch ytdl option information for a specific option.
 
         Returns `None` if the option is not found.
         '''
@@ -150,7 +150,7 @@ class YtdlDatabase(ABC):
 
     def update_ydl_options(self):
         '''
-        Update all youtube-dl options in the database.
+        Update all ytdl options in the database.
 
         This refreshes the help text and the destination variable.
         '''
