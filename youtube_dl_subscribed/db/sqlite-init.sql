@@ -110,7 +110,7 @@ INSERT INTO profile_setting VALUES (
     1,
     'Basic',
     (SELECT id FROM format WHERE label = 'Best'),
-    './downloaded/basic/%(uploader)s/[%(upload_date)s] %(title)s.%(ext)s',
+    './downloaded/basic/%(uploader)s/[%(upload_date)s] %(title).75s.%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
     1,      -- IGNORE_ERRORS
@@ -131,7 +131,7 @@ INSERT INTO profile_setting VALUES (
     2,
     'Archival',
     (SELECT id FROM format WHERE label = 'Archival'),
-    './downloaded/archival/%(extractor_key)s/%(upload_date)s %(title)s [%(id)s].%(ext)s',
+    './downloaded/archival/%(extractor_key)s/%(uploader)s - %(upload_date)s - [%(id)s].%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
     1,      -- IGNORE_ERRORS
@@ -152,7 +152,7 @@ INSERT INTO profile_setting VALUES (
     3,
     'Plex',
     (SELECT id FROM format WHERE label = 'Best'),
-    './downloaded/plex/%(uploader)s/%(title)s.%(ext)s',
+    './downloaded/plex/%(uploader)s/%(title).75s.%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
     1,      -- IGNORE_ERRORS
@@ -173,7 +173,7 @@ INSERT INTO profile_setting VALUES (
     4,
     'Servable',
     (SELECT id FROM format WHERE label = 'Best'),
-    './static/video/%(uploader)s/%(title)s.%(ext)s',
+    './static/video/%(uploader)s/%(title).75s.%(ext)s',
     1,      -- WRITE_SUB
     1,      -- ALL_SUBS
     1,      -- IGNORE_ERRORS
