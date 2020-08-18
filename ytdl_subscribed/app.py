@@ -1,3 +1,5 @@
+import json
+import os
 import subprocess
 
 from bottle import (
@@ -13,6 +15,7 @@ from bottle import (
     view
 )
 
+from .bottle_json_pretty import JSONPrettyPlugin
 from .db import YtdlDatabase
 from .download import download
 from .log import log
@@ -22,8 +25,7 @@ from .utils import (
     get_env_override_set,
     get_resource_path,
     get_storage_path,
-    get_ydl_options,
-    handle_servable_filepath
+    get_ydl_options
 )
 
 db = YtdlDatabase.factory(get_env_override('YDL_DB_BACKEND', default='sqlite', quiet=False))
@@ -34,7 +36,8 @@ pool = WorkPool.get_instance()
 # Help Bottle find the templates since the
 # working directory won't be a reliable guess
 TEMPLATE_PATH.insert(0, get_resource_path('views'))
-app = Bottle()
+app = Bottle(autojson=False)
+app.install(JSONPrettyPlugin())
 
 @app.get('/')
 @view('index')
@@ -74,16 +77,20 @@ def bottle_collection_by_extractor(extractor, collection_online_id):
 @app.get('/video/<video_db_id:re:[0-9]*>')
 @view('video')
 def bottle_video_by_id(video_db_id):
-    data = db.get_video(video_db_id)
-
-    if (data is None):
-        raise HTTPError(404, 'Could not find the requested video.')
-
-    data = handle_servable_filepath(db, data)
-
+    data = bottle_api_get_video(video_db_id)
     return {
         'item': data
     }
+
+@app.get('/video/<video_db_id:re:[0-9]*>/download')
+@view('video')
+def bottle_video_download(video_db_id):
+
+    # TODO: Using the current directory won't always be accurate
+    # For now, this works for the Docker container or if you
+    # always run ytdl-subscribed from the same directory
+    data = bottle_api_get_video(video_db_id)
+    return static_file(data['filepath'], root=os.getcwd(), download=True)
 
 @app.get('/video/<extractor>/<video_online_id>')
 @view('video')
@@ -92,8 +99,6 @@ def bottle_video_by_extractor(extractor, video_online_id):
 
     if (data is None):
         raise HTTPError(404, 'Could not find the requested video.')
-
-    data = handle_servable_filepath(db, data)
 
     return {
         'item': data
@@ -115,7 +120,7 @@ def bottle_static(filename):
     return static_file(filename, root=get_resource_path('static'))
 
 @app.get('/api/queue')
-def bottle_get_queue():
+def bottle_api_get_queue():
     download_queue = db.result_to_simple_type(db.get_queued_downloads())
     return {
         'count': len(download_queue),
@@ -125,7 +130,7 @@ def bottle_get_queue():
 # / is for backwards compatibility with the original project
 @app.post('/')
 @app.post('/api/queue')
-def bottle_add_to_queue():
+def bottle_api_add_to_queue():
     url = request.forms.get('url')
     do_redirect_str = request.forms.get('redirect')
 
@@ -150,15 +155,32 @@ def bottle_add_to_queue():
     if (do_redirect):
         return redirect('/')
 
-    return bottle_get_queue()
+    return bottle_api_get_queue()
+
+@app.get('/api/recent')
+def bottle_api_get_recent():
+    recent = db.result_to_simple_type(db.get_recent_downloads())
+    return {
+        'count': len(recent),
+        'items': recent
+    }
 
 @app.get('/api/failed')
-def bottle_get_failed():
+def bottle_api_get_failed():
     failed = db.result_to_simple_type(db.get_failed_downloads())
     return {
         'count': len(failed),
         'items': failed
     }
+
+@app.get('/api/video/<video_db_id:re:[0-9]*>')
+def bottle_api_get_video(video_db_id):
+    data = db.get_video(video_db_id)
+
+    if (data is None):
+        raise HTTPError(404, 'Could not find the requested video.')
+
+    return db.result_to_simple_type(data)
 
 # /update is for backwards compatibility with the original project
 @app.get('/update')

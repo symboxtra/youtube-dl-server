@@ -190,16 +190,6 @@ def get_storage_path(path=''):
 
     return os.path.join(folder_path, path)
 
-def handle_servable_filepath(db, db_info):
-
-    info = db.result_to_simple_type(db_info)
-
-    # Handle servable files
-    if (int(db.get_settings()['YDL_SERVER_PROFILE']) == db.profile.SERVABLE):
-        info['filepath_link'] = info['filepath'].replace('./static', '/static', 1)
-
-    return info
-
 def ytdl_pretty_name(ytdl_info):
 
     return f'"{ytdl_info["title"]}" [{ytdl_info["webpage_url"]}]'

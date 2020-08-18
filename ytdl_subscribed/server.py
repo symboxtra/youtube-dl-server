@@ -23,4 +23,4 @@ def main():
     app_vars = db.get_settings()
 
     app.run(host=app_vars['YDL_SERVER_HOST'],
-            port=app_vars['YDL_SERVER_PORT'], catchall=True, debug=True)
+            port=app_vars['YDL_SERVER_PORT'], catchall=True, debug=True, reloader=False)

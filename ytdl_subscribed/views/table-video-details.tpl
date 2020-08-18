@@ -37,13 +37,9 @@
     <tr>
         <td><b>File:</b></td>
         <td>
-            %if ('filepath_link' in item):
-            <a href="{{item['filepath_link']}}" download>
+            <a href="/video/{{item['id']}}/download" download>
                 <code>{{item['filepath']}}</code>
             </a>
-            %else:
-            <code>{{item['filepath']}}</code>
-            %end
         </td>
     </tr>
     <tr>
