@@ -1,7 +1,6 @@
 .vscode
 __pycache__
-env
-win-env
+*env
 *.db
 
 downloaded

@@ -1,8 +1,10 @@
 .vscode
 __pycache__
-env
-win-env
+*env
 *.db
+
+downloaded
+static/video
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
