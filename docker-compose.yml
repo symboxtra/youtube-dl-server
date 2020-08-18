@@ -13,9 +13,12 @@ services:
     ports:
       - 8080:8080
     volumes:
+      - config:/app/db
       - video:/app/static/video
       - video:/app/downloaded
 
 volumes:
+  config:
+    external: false
   video:
     external: false
