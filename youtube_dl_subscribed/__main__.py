@@ -1,8 +1,8 @@
 import sys
 
 # Execute with
-# $ python youtube-dl-server-subd/__main__.py
-# $ python -m youtube-dl-server-subd
+# $ python youtube_dl_subscribed/__main__.py
+# $ python -m youtube_dl_subscribed
 
 if (__package__ is None and not hasattr(sys, 'frozen')):
     # direct call of __main__.py

@@ -20,4 +20,4 @@ RUN mkdir -p /app/db /app/downloaded /app/static/video
 VOLUME ["/app/db", "/app/downloaded", "/app/static/video"]
 
 COPY --chown=ytdl . /app
-CMD [ "python", "-u", "./youtube-dl-server.py" ]
+CMD [ "python", "-u", "-m", "youtube_dl_subscribed" ]
