@@ -324,4 +324,5 @@ class YtdlSqliteDatabase(YtdlDatabase):
 
     def __del__(self):
 
-        self.db.close()
+        if (self.db):
+            self.db.close()

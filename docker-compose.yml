@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     environment:
       - YDL_SERVER_PROFILE=4
-      - YDL_DB_PATH="/app/db/data.db"
+      - YDL_DB_PATH=/app/db/data.db
     ports:
       - 8080:8080
     volumes:

@@ -1,4 +1,4 @@
-%include('header.tpl', title='youtube-dl')
+%include('header.tpl')
 
 	<header>
 		<h1>Multimedia Content Archival</h1>

@@ -46,15 +46,15 @@ class YtdlDatabase(ABC):
         `~/.ytdl_subscribed/db_config.json`
         '''
 
+        self.db = None
+        self.db_config = {}
+
         try:
             with open(get_storage_path('db_config.json')) as f:
-                db_config = json.load(f)
+                self.db_config = json.load(f)
         except Exception as e:
             log.debug('Could not open db_config.json. Using default connection settings.')
             log.debug(e)
-            db_config = {}
-
-        self.db_config = db_config
 
     @abstractmethod
     def _begin(self):
