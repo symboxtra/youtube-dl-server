@@ -3,6 +3,7 @@ import os
 import subprocess
 
 from bottle import (
+    TEMPLATE_PATH,
     Bottle,
     HTTPError,
     redirect,
@@ -11,11 +12,11 @@ from bottle import (
     route,
     run,
     static_file,
-    TEMPLATE_PATH,
     view
 )
 
-from .bottle_json_pretty import JSONPrettyPlugin
+from bottle_json_pretty import JSONPrettyPlugin
+
 from .db import YtdlDatabase
 from .download import download
 from .log import log
